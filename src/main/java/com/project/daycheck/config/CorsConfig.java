@@ -20,6 +20,7 @@ public class CorsConfig {
 
         // 프론트엔드 출처 허용
         config.addAllowedOrigin("http://localhost:5174");
+        config.addAllowedOrigin("http://localhost:5173");
 
         // 모든 HTTP 메서드 허용
         config.addAllowedMethod("*");

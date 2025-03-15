@@ -3,6 +3,7 @@ package com.project.daycheck.repository;
 import com.project.daycheck.entity.Schedules;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -32,6 +33,12 @@ public interface ScheduleRepository extends JpaRepository<Schedules, Long> {
      * 부모 일정이 아닌 일정들을 조회합니다(parentScheduleId가 null인 것들).
      */
     List<Schedules> findByParentScheduleIdIsNull();
+
+    // 스케줄러에 알림 사용
+    @Query("SELECT s FROM Schedules s WHERE s.startDate BETWEEN :start AND :end")
+    List<Schedules> findSchedulesBetween (
+            @Param("start") LocalDateTime startDate,
+            @Param("end") LocalDateTime end);
 
     /**
      * 특정 날짜의 일정을 조회합니다.

@@ -56,4 +56,7 @@ public class Schedules {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Column(name = "notification_before")
+    private Integer notificationBefore = 15; // 기본 값 15분
 }
