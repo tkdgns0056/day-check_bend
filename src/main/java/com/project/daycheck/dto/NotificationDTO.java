@@ -16,11 +16,10 @@ public class NotificationDTO {
 
     private Long id;
     private Long scheduleId;
-    private String scheduleContent;
+    private String content; // 일정 제목
     private String message;
     private LocalDateTime notificationTime;
     private Notification.NotificationType type;
     private boolean isRead;
     private LocalDateTime createdAt;
-
 }

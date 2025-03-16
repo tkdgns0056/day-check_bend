@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,6 +21,7 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SseEmitterService sseEmitterService;
 
     /**
      * 읽지 않은 알림 목록을 조회한다.
@@ -86,8 +86,8 @@ public class NotificationService {
     private NotificationDTO mapToDTO(Notification notification) {
         return NotificationDTO.builder()
                 .id(notification.getId())
-                .scheduleId(notification.getSchedules().getId())
-                .scheduleContent(notification.getSchedules().getContent())
+                .scheduleId(notification.getSchedule().getId())
+                .content(notification.getSchedule().getContent())
                 .message(notification.getMessage())
                 .notificationTime(notification.getNotificationTime())
                 .type(notification.getType())
@@ -115,7 +115,7 @@ public class NotificationService {
         }
 
         Notification notification = Notification.builder()
-                .schedules(schedules)
+                .schedule(schedules)
                 .message(message)
                 .notificationTime(notificationTime)
                 .type(type)
@@ -124,7 +124,10 @@ public class NotificationService {
 
         Notification savedNotification = notificationRepository.save(notification);
 
-        return mapToDTO(savedNotification);
+        // 알림 생성 후 SSE로 전송 (추가)
+        NotificationDTO notificationDTO = mapToDTO(savedNotification);
+
+        return notificationDTO;
     }
 
     /**
