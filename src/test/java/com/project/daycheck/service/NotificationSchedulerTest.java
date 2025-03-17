@@ -1,6 +1,6 @@
 package com.project.daycheck.service;
 
-import com.project.daycheck.config.NotificationScheduler;
+import com.project.daycheck.config.component.NotificationScheduler;
 import com.project.daycheck.entity.Notification;
 import com.project.daycheck.entity.Schedules;
 import com.project.daycheck.repository.NotificationRepository;
@@ -13,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

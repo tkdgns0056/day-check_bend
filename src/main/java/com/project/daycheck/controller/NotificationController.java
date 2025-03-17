@@ -1,85 +1,66 @@
 package com.project.daycheck.controller;
 
+import com.project.daycheck.config.component.SseEmitters;
 import com.project.daycheck.dto.NotificationDTO;
-import com.project.daycheck.service.NotificationService;
-import lombok.Getter;
+import com.project.daycheck.repository.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
 
 @Slf4j
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
 public class NotificationController {
-
     private final NotificationService notificationService;
+    private final SseEmitters sseEmitters;
 
-    /**
-     * 읽지 않은 알림 목록을 조회합니다.
-     */
-    @GetMapping("/unread")
-    public ResponseEntity<List<NotificationDTO>> getUnreadNotifications() {
-        List<NotificationDTO> notifications = notificationService.getUnreadNotifications();
-        log.info("읽지 않은 알림 조회: {} 개", notifications.size());
-        return ResponseEntity.ok(notifications);
+    // SSE 연결 엔드포인트
+    @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter subscribe(@RequestParam String clientId){
+        // 기본 타임아웃을 30분으로 설정
+        SseEmitter emitter = new SseEmitter(1800000L);
+        return sseEmitters.add(clientId, emitter);
     }
 
     /**
-     * 모든 알림 목록을 조회합니다.
+     * 알림 목록 조회
      */
     @GetMapping
-    public ResponseEntity<List<NotificationDTO>> getAllNotifications() {
-        List<NotificationDTO> notifications = notificationService.getAllNotifications();
-        log.info("모든 알림 조회: {} 개", notifications.size());
-        return ResponseEntity.ok(notifications);
+    public ResponseEntity<List<NotificationDTO.Response>> getNotifications(@RequestParam String clientId){
+        return ResponseEntity.ok(notificationService.getNotifications(clientId));
     }
 
+
     /**
-     * 특정 알림을 읽음 상태로 변경합니다.
+     * 알림 읽음 처리
      */
     @PatchMapping("/{id}/read")
-    public ResponseEntity<NotificationDTO> markAsRead(@PathVariable Long id) {
-        NotificationDTO notification = notificationService.markAsRead(id);
-        log.info("알림 읽음 처리: {}", id);
-        return ResponseEntity.ok(notification);
+    public ResponseEntity<NotificationDTO.Response> markAsRead(@PathVariable Long id, @RequestParam String clientId) {
+        return notificationService.markAsRead(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    /**
-     * 모든 읽지 않은 알림을 읽음 상태로 변경합니다.
-     */
-    @PatchMapping("/read-all")
-    public ResponseEntity<Map<String, String>> markAllAsRead() {
-        notificationService.markAllAsRead();
+    // 테스트용 알림 생성 엔드포인트
+    @PostMapping("/test")
+    public ResponseEntity<NotificationDTO.Response> createTestNotification(@RequestBody NotificationDTO.CreateRequest request){
 
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "모든 알림을 읽음 처리했습니다.");
-        log.info("모든 알림 읽음 처리 완료");
-
+        NotificationDTO.Response response = notificationService.createNotification(request);
         return ResponseEntity.ok(response);
     }
 
     /**
-     * 알림 상태 정보를 조회합니다.
-     * 프론트엔드에서 폴링 방식으로 새 알림을 확인하기 위한 용도입니다.
+     * 특정 스케줄의 알림 목록 조회
      */
-    @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getNotificationStatus() {
-        Map<String, Object> status = new HashMap<>();
-        status.put("active", true);
-        status.put("lastCheck", LocalDateTime.now().toString());
-
-        // 읽지 않은 알림 개수
-        int unreadCount = notificationService.getUnreadCount();
-        status.put("unreadCount", unreadCount);
-
-        return ResponseEntity.ok(status);
+    @GetMapping("/schedule/{scheduleId")
+    public ResponseEntity<List<NotificationDTO.Response>> getNotificationsByScheduleId(@PathVariable Long scheduleId) {
+        return ResponseEntity.ok(notificationService.getNotificationsByScheduleId(scheduleId));
     }
-
 }

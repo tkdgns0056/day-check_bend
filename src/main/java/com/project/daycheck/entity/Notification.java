@@ -1,46 +1,61 @@
 package com.project.daycheck.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "notifications")
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Notification {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "schedule_id", nullable = false)
-    private Schedules schedule;
-
     @Column(nullable = false)
-    private String message;
+    private String clientId; // 로그인 대신 사용할 클라이언트ID
 
-    @Column(name = "notification_time", nullable = false)
-    private LocalDateTime notificationTime;
+    @Column(length = 1000)
+    private String content;
+
+    // 스케줄 Id 필드 추가
+    private Long scheduleId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private NotificationType type;
 
-    @Column(name = "is_read", nullable = false)
-    private boolean isRead = false;
+    @Column(nullable = false)
+    private boolean read = false;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
+
+    // 알림 타입 정의
     public enum NotificationType {
-        BEFORE_START, AT_START
+       MESSAGE, SCHEDULE, SYSTEM, MENTION
+    }
+
+    // 생성사 수정(빌더 패턴)
+    @Builder
+    public Notification(String clientId, String content, NotificationType type, Long scheduleId) {
+        this.clientId = clientId;
+        this.content = content;
+        this.type = type;
+        this.scheduleId = scheduleId;
+        this.createdAt = LocalDateTime.now();
+        this.read= false;
+    }
+
+    // 읽음 처리 메서드
+    public void markAsRead() {
+        this.read = true;
     }
 }

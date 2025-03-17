@@ -1,4 +1,4 @@
-package com.project.daycheck.service;
+package com.project.daycheck.repository.service;
 
 import com.project.daycheck.dto.RecurringGroupDTO;
 import com.project.daycheck.dto.ScheduleRequest;

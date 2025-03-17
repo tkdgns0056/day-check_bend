@@ -2,7 +2,7 @@ package com.project.daycheck.controller;
 
 import com.project.daycheck.dto.ScheduleRequest;
 import com.project.daycheck.entity.Schedules;
-import com.project.daycheck.service.ScheduleService;
+import com.project.daycheck.repository.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
