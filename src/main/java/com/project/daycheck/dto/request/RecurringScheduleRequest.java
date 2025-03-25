@@ -3,6 +3,7 @@ package com.project.daycheck.dto.request;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class RecurringScheduleRequest {

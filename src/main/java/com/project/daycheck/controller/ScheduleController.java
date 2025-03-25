@@ -1,8 +1,9 @@
 package com.project.daycheck.controller;
 
+import com.project.daycheck.dto.ScheduleDTO;
 import com.project.daycheck.dto.ScheduleRequest;
 import com.project.daycheck.entity.Schedules;
-import com.project.daycheck.repository.service.ScheduleService;
+import com.project.daycheck.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class ScheduleController {
 
     // 일정 추가
     @PostMapping
-    public ResponseEntity<Schedules> addSchedule(@RequestBody ScheduleRequest request) {
+    public ResponseEntity<Schedules> addSchedule(@RequestBody ScheduleDTO request) {
         Schedules savedSchedule = scheduleService.addSchedule(request);
         return ResponseEntity.ok(savedSchedule);
     }
@@ -41,7 +42,7 @@ public class ScheduleController {
     @PutMapping("/{id}")
     public ResponseEntity<Schedules> updateSchedule(
             @PathVariable Long id,
-            @RequestBody ScheduleRequest request) {
+            @RequestBody ScheduleDTO request) {
         Schedules updatedSchedule = scheduleService.updateSchedule(id, request);
         return ResponseEntity.ok(updatedSchedule);
     }

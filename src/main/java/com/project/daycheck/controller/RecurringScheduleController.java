@@ -4,7 +4,7 @@ import com.project.daycheck.dto.RecurringGroupDTO;
 import com.project.daycheck.dto.request.RecurringScheduleRequest;
 import com.project.daycheck.dto.request.RecurringScheduleUpdateRequest;
 import com.project.daycheck.entity.Schedules;
-import com.project.daycheck.repository.service.ScheduleService;
+import com.project.daycheck.service.ScheduleService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -13,10 +13,9 @@ import java.util.List;
 @Repository
 public interface ScheduleRepository extends JpaRepository<Schedules, Long> {
 
-    /**
-     * 특정 날짜 범위에 해당하는 일정을 조회합니다.
-     * 시작일이 범위 내에 있거나 종료일이 범위 내에 있는 일정을 모두 포함합니다.
-     */
+
+     // 특정 날짜 범위에 해당하는 일정을 조회합니다.
+     // 시작일이 범위 내에 있거나 종료일이 범위 내에 있는 일정을 모두 포함
     List<Schedules> findByStartDateBetweenOrEndDateBetween(
             LocalDateTime startDateFrom,
             LocalDateTime startDateTo,
@@ -24,39 +23,24 @@ public interface ScheduleRepository extends JpaRepository<Schedules, Long> {
             LocalDateTime endDateTo
     );
 
-    /**
-     * 부모 일정 ID로 하위 일정들을 조회합니다.
-     */
+
+     //부모 일정 ID로 하위 일정들을 조회
     List<Schedules> findByParentScheduleId(Long parentScheduleId);
 
-    /**
-     * 부모 일정이 아닌 일정들을 조회합니다(parentScheduleId가 null인 것들).
-     */
+
+     // 부모 일정이 아닌 일정들을 조회합니다(parentScheduleId가 null인 것들)
     List<Schedules> findByParentScheduleIdIsNull();
 
-    // 스케줄러에 알림 사용
-    @Query("SELECT s FROM Schedules s WHERE s.startDate BETWEEN :start AND :end")
-    List<Schedules> findSchedulesBetween (
-            @Param("start") LocalDateTime startDate,
-            @Param("end") LocalDateTime end);
-
-    /**
-     * 특정 날짜의 일정을 조회합니다.
-     */
-    List<Schedules> findByStartDateBetween(LocalDateTime start, LocalDateTime end);
-
-    /**
-     * 완료된 일정을 조회합니다.
-     */
+     // 완료된 일정을 조회
     List<Schedules> findByCompleted(Boolean completed);
 
-    /**
-     * 특정 우선순위의 일정을 조회합니다.
-     */
-    List<Schedules> findByPriority(String priority);
+    // 2025.03.21 psh - 시작 시간 기준으로 일정 조회
+    List<Schedules> findByStartDateBetween(LocalDateTime start, LocalDateTime end);
 
-    /**
-     * 특정 반복 패턴의 일정을 조회합니다.
-     */
-    List<Schedules> findByRecurrencePattern(String recurrencePattern);
+    // 2025.03.21 psh - 특정 시간 이후의 모든 일정 조회
+    List<Schedules> findByStartDateAfter(LocalDateTime dateTime);
+
+    // 2025.03.21 psh - 진행 중인 일정 조회
+    @Query("SELECT s FROM Schedules s WHERE s.startDate <= ?1 AND s.endDate >= ?1 AND s.completed = false")
+    List<Schedules> findActiveSchedules(LocalDateTime now);
 }

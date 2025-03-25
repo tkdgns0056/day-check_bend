@@ -15,6 +15,9 @@ spring:
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
   jpa:
     hibernate:
       ddl-auto: update
@@ -24,3 +27,24 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
     show-sql: true
 
+  jwt:
+    secret: "aGVsbG9Xb3JsZC1vbmV2b2x2ZXJ5cGVyZXBzYXNzYmFsbGV0QGZvc3Rlci1lbnZpb3JvbWVudHNpZ3RpYz9wZXJmb3JtZWdvc3lzdGVtVGhpcyJzYmFmZWRyZW1wZXZpb3VsYWdldGVuY2VsdC1saXN0ZXJzYXppbGl0bGV0ZWQgdGhhdCdtZWRpc2lmdWxtYXNrQ29tbXVuaWNhdGlvbmQhIWJlZW5jb3RhaQ=="
+    access-token-validity-in-seconds: 3600  # 1시간
+    refresh-token-validity-in-seconds: 604800  # 7일
+
+  server:
+    port: 8080
+
+  mail:
+#    host: smtp.gmail.com
+    host: localhost
+#    port: 587
+    port : 1025 # MailHog 같은 개발용 STMP 서버 포트
+    username: test@gmail.com
+    password: test1234
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false

@@ -1,7 +1,7 @@
-package com.project.daycheck.repository.service;
+package com.project.daycheck.service;
 
 import com.project.daycheck.dto.RecurringGroupDTO;
-import com.project.daycheck.dto.ScheduleRequest;
+import com.project.daycheck.dto.ScheduleDTO;
 import com.project.daycheck.dto.request.RecurringScheduleRequest;
 import com.project.daycheck.entity.Schedules;
 import com.project.daycheck.repository.ScheduleRepository;
@@ -24,18 +24,12 @@ public class ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
 
+
     /**
      * 모든 일정을 조회합니다.
      */
     public List<Schedules> getAllSchedules() {
         return scheduleRepository.findAll();
-    }
-
-    /**
-     * 특정 날짜 범위의 일정을 조회합니다.
-     */
-    public List<Schedules> getSchedulesByDateRange(LocalDateTime start, LocalDateTime end) {
-        return scheduleRepository.findByStartDateBetweenOrEndDateBetween(start, end, start, end);
     }
 
     /**
@@ -51,7 +45,7 @@ public class ScheduleService {
      * 일정 내용을 수정합니다.
      */
     @Transactional
-    public Schedules updateSchedule(Long id, ScheduleRequest request) {
+    public Schedules updateSchedule(Long id, ScheduleDTO request) {
         Schedules schedule = scheduleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("일정을 찾을 수 없습니다."));
 
@@ -99,7 +93,7 @@ public class ScheduleService {
      * 새 일정을 추가합니다.
      */
     @Transactional
-    public Schedules addSchedule(ScheduleRequest request) {
+    public Schedules addSchedule(ScheduleDTO request) {
         Schedules schedule = Schedules.builder()
                 .content(request.getContent())
                 .startDate(request.getStartDate())
@@ -109,8 +103,12 @@ public class ScheduleService {
                 .completed(request.getCompleted() != null ? request.getCompleted() : false)
                 .build();
 
-        return scheduleRepository.save(schedule);
+        Schedules savedSchedule = scheduleRepository.save(schedule);
+
+
+        return savedSchedule;
     }
+
 
     /**
      * 일정을 수정합니다.
@@ -146,6 +144,7 @@ public class ScheduleService {
         Schedules schedule = scheduleRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("일정을 찾을 수 없습니다."));
         schedule.setCompleted(!schedule.getCompleted());
+
         return scheduleRepository.save(schedule);
     }
 
@@ -249,6 +248,7 @@ public class ScheduleService {
             allSchedules.addAll(childSchedules);
         }
 
+
         return allSchedules;
     }
 
@@ -289,6 +289,7 @@ public class ScheduleService {
 
         // 날짜나 반복 패턴이 변경된 경우 하위 일정 재생성
         if (datesChanged) {
+
             // 기존 하위 일정 삭제
             if (!existingChildSchedules.isEmpty()) {
                 scheduleRepository.deleteAll(existingChildSchedules);
@@ -385,12 +386,13 @@ public class ScheduleService {
      */
     @Transactional
     public void deleteRecurringSchedules(Long parentId) {
-        // 하위 일정 삭제
+        // 하위 일정 조회 및 알림 삭제
         List<Schedules> childSchedules = scheduleRepository.findByParentScheduleId(parentId);
         if (!childSchedules.isEmpty()) {
+
+            // 하위 일정 삭제
             scheduleRepository.deleteAll(childSchedules);
         }
-
         // 부모 일정 삭제
         scheduleRepository.deleteById(parentId);
     }
