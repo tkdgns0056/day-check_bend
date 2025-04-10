@@ -16,39 +16,35 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class EmailVerificationToken extends BaseTimeEntity{
 
-    private static final int EXPIRATION_HOURS = 24;
-
-    @Id
+   @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String token;
+    @Column(nullable = false)
+    private String email;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
+    @Column(nullable = false)
+    private String code;
 
     @Column(nullable = false)
     private LocalDateTime expiryDate;
 
+    @Column(nullable = false)
+    private boolean verified;
+
     @Builder
-    private EmailVerificationToken(Member member) {
-        this.token = UUID.randomUUID().toString();
-        this.member = member;
-        this.expiryDate = LocalDateTime.now().plusHours(EXPIRATION_HOURS);
+    public EmailVerificationToken(String email, String code) {
+        this.email = email;
+        this.code = code;
+        this.expiryDate = LocalDateTime.now().plusMinutes(10); // 10분 유효
+        this.verified = false;
     }
 
-    // 토큰 생성 팩토리 메서드
-    public static EmailVerificationToken createTokenForUser(Member member) {
-        return EmailVerificationToken.builder()
-                .member(member)
-                .build();
-    }
-
-    // 토큰 만료 여부 확인
-    public boolean isExpired() {
+    public boolean isExpired(){
         return LocalDateTime.now().isAfter(expiryDate);
     }
 
+    public void verify() {
+        this.verified = true;
+    }
 }

@@ -26,6 +26,11 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQL8Dialect
     show-sql: true
+  
+  task:
+    scheduling:
+      pool:
+        size: 5 # 스케줄러 스레드 풀 크기
 
   jwt:
     secret: "aGVsbG9Xb3JsZC1vbmV2b2x2ZXJ5cGVyZXBzYXNzYmFsbGV0QGZvc3Rlci1lbnZpb3JvbWVudHNpZ3RpYz9wZXJmb3JtZWdvc3lzdGVtVGhpcyJzYmFmZWRyZW1wZXZpb3VsYWdldGVuY2VsdC1saXN0ZXJzYXppbGl0bGV0ZWQgdGhhdCdtZWRpc2lmdWxtYXNrQ29tbXVuaWNhdGlvbmQhIWJlZW5jb3RhaQ=="
@@ -36,15 +41,30 @@ spring:
     port: 8080
 
   mail:
-#    host: smtp.gmail.com
-    host: localhost
-#    port: 587
-    port : 1025 # MailHog 같은 개발용 STMP 서버 포트
-    username: test@gmail.com
-    password: test1234
+    host: smtp.gmail.com
+    port: 587
+    username: tkdgns0056@gmail.com
+    password: bhqe grhe hpql doeh
     properties:
       mail:
         smtp:
-          auth: false
+          auth: true
           starttls:
-            enable: false
+            enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+#  mail:
+##    host: smtp.gmail.com
+#    host: localhost
+##    port: 587
+#    port : 1025 # MailHog 같은 개발용 STMP 서버 포트
+#    username: test@gmail.com
+#    password: test1234!
+#    properties:
+#      mail:
+#        smtp:
+#          auth: false
+#          starttls:
+#            enable: false

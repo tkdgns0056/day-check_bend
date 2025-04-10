@@ -4,7 +4,9 @@ import com.project.daycheck.config.security.JwtTokenProvider;
 import com.project.daycheck.dto.request.MemberLoginRequestDto;
 import com.project.daycheck.dto.response.TokenResponseDto;
 import com.project.daycheck.entity.Member;
+import com.project.daycheck.exception.BusinessException;
 import com.project.daycheck.exception.EmailNotVerifiedException;
+import com.project.daycheck.exception.ErrorCode;
 import com.project.daycheck.exception.InvalidCredentialsException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,12 +35,15 @@ public class AuthenticationService {
     @Transactional
     public TokenResponseDto login(MemberLoginRequestDto requestDto) {
         try {
+            log.info("로그인 요청: {}", requestDto.getEmail());
+
             // 사용자 이메일 인증 여부 확인
             Member member = memberService.findMemberByEmail(requestDto.getEmail());
 
             // 인증 안되었으면 에러
             if(!member.isEmailVerified()) {
-                throw new EmailNotVerifiedException("이메일 인증이 완료되지 않았습니다.");
+                log.info("이메일 미인증: {}", requestDto.getEmail());
+                throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED);
             }
 
             // 인증 토큰 생성
@@ -62,7 +67,7 @@ public class AuthenticationService {
                     .refreshToken(refreshToken)
                     .build();
         } catch (AuthenticationException e) {
-            throw new InvalidCredentialsException("아이디 또는 비밀번호가 잘못되었습니다.");
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
     }
 
@@ -75,7 +80,8 @@ public class AuthenticationService {
     public TokenResponseDto refreshToken(String refreshToken) {
         // 리프레시 토큰 유효성 검증
         if(!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new InvalidCredentialsException("유효하지 않은 리프레시 토큰입니다.");
+            log.info("유효하지 않은 리프레시 토큰");
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
         // 토큰에서 인증 정보 추출

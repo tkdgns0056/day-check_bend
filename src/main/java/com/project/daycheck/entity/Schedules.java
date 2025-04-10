@@ -57,4 +57,7 @@ public class Schedules {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Column
+    private Integer  notificationBefore;  // 시작 전 몇 분 전에 알림을 보낼지 설정
+
 }
