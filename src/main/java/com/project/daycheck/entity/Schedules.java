@@ -4,10 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -17,11 +14,14 @@ import java.time.LocalDateTime;
 import static jakarta.persistence.ConstraintMode.*;
 
 
+/**
+ * 일반 일정 엔티티
+ */
 @Entity
-@Data
+@Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Schedules {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,11 +48,11 @@ public class Schedules {
     @Column
     private Boolean completed;
 
-    @Column
-    private String recurrencePattern;  // DAILY, WEEKLY, WEEKDAY 등
+//    @Column
+//    private String recurrencePattern;  // DAILY, WEEKLY, WEEKDAY 등
 
-    @Column
-    private Long parentScheduleId;  // 반복 일정의 부모 ID
+//    @Column
+//    private Long parentScheduleId;  // 반복 일정의 부모 ID
 
     @Column
     private String priority;  // high, medium, low
@@ -66,7 +66,49 @@ public class Schedules {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    @Column
-    private Integer  notificationBefore;  // 시작 전 몇 분 전에 알림을 보낼지 설정
 
+    /**
+     * 일정 완료 상태 토글
+     */
+    public boolean toggleComplete() {
+        this.completed = !this.completed;
+        return this.completed;
+    }
+
+    /**
+     * 일정 내용 수정
+     */
+    public void updateContent(String content){
+        if(content != null && !content.isBlank()){
+            this.content = content;
+        }
+    }
+
+    /**
+     * 일정 설명 수정
+     */
+    public void updateDescription(String description) {
+        this.description = description;
+    }
+
+    /**
+     * 일정 우선순위 수정
+     */
+    public void updatePriority(String priority){
+        if(priority != null && !priority.isBlank()) {
+            this.priority = priority;
+        }
+    }
+
+    /**
+     * 일정 시간 수정
+     */
+    public void updateTimes(LocalDateTime startDate, LocalDateTime endDate) {
+        if(startDate != null) {
+            this.startDate = startDate;
+        }
+        if(endDate != null) {
+            this.endDate = endDate;
+        }
+    }
 }

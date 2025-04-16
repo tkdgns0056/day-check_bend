@@ -33,24 +33,13 @@ public interface ScheduleRepository extends JpaRepository<Schedules, Long> {
             @Param("memberId") Long memberId
     );
 
-    // 특정 멤버의 부모 일정 ID로 하위 일정들을 조회
-    List<Schedules> findByParentScheduleIdAndMemberId(Long parentScheduleId, Long memberId);
+    // 특정 멤버의 부모 일정 ID로 하위 일정들을 조회 - version1
+//    List<Schedules> findByParentScheduleIdAndMemberId(Long parentScheduleId, Long memberId);
 
-    // 특정 멤버의 부모가 아닌 일정들을 조회합니다(parentScheduleId가 null인 것들)
-    List<Schedules> findByMemberIdAndParentScheduleIdIsNull(Long memberId);
+    // 특정 멤버의 부모가 아닌 일정들을 조회합니다(parentScheduleId가 null인 것들) - version1
+//    List<Schedules> findByMemberIdAndParentScheduleIdIsNull(Long memberId);
 
-    // 특정 멤버의 완료된 일정을 조회
-    List<Schedules> findByMemberIdAndCompleted(Long memberId, Boolean completed);
 
-    // 특정 멤버의 시작 시간 기준으로 일정 조회
-    List<Schedules> findByMemberIdAndStartDateBetween(Long memberId, LocalDateTime start, LocalDateTime end);
-
-    // 특정 멤버의 특정 시간 이후의 모든 일정 조회
-    List<Schedules> findByMemberIdAndStartDateAfter(Long memberId, LocalDateTime dateTime);
-
-    // 특정 멤버의 진행 중인 일정 조회
-    @Query("SELECT s FROM Schedules s WHERE s.memberId = :memberId AND s.startDate <= :now AND s.endDate >= :now AND s.completed = false")
-    List<Schedules> findActiveMemberSchedules(@Param("memberId") Long memberId, @Param("now") LocalDateTime now);
 
 //     // 특정 날짜 범위에 해당하는 일정을 조회합니다.
 //     // 시작일이 범위 내에 있거나 종료일이 범위 내에 있는 일정을 모두 포함
