@@ -1,18 +1,20 @@
 package com.project.daycheck.service;
 
-import com.project.daycheck.dto.RecurringGroupDTO;
+import com.project.daycheck.dto.RecurringScheduleDTO;
 import com.project.daycheck.dto.ScheduleDTO;
 import com.project.daycheck.dto.request.RecurringScheduleRequest;
+import com.project.daycheck.dto.request.ScheduleRequest;
 import com.project.daycheck.entity.Member;
 import com.project.daycheck.entity.Schedules;
 import com.project.daycheck.exception.BusinessException;
 import com.project.daycheck.exception.ErrorCode;
 import com.project.daycheck.repository.ScheduleRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -23,6 +25,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * 일반 일정 서비스
+ */
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScheduleService {
@@ -47,541 +54,127 @@ public class ScheduleService {
     /**
      * 현재 사용자의 모든 일정을 조회합니다.
      */
-    public List<Schedules> getAllSchedules() {
+    @Transactional(readOnly = true)
+    public List<ScheduleDTO> getAllSchedules() {
+
         // 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
         Long memberId = getCurrentMemberId();
-        return scheduleRepository.findByMemberId(memberId);
+        List<Schedules> schedules = scheduleRepository.findByMemberId(memberId);
+
+        return schedules.stream()
+                .map(ScheduleDTO::fromEntity)
+                .collect(Collectors.toList());
     }
 
     /**
-     * 현재 사용자의 특정 날짜의 일정을 조회합니다.
+     * 특정 ID의 일정 조회
      */
-    public List<Schedules> getSchedulesByDate(LocalDate date) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
+    @Transactional(readOnly = true)
+    public ScheduleDTO getScheduleById(Long scheduleId){
+        Long memberId = getCurrentMemberId();
+        Schedules schedules = scheduleRepository.findByIdAndMemberId(scheduleId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        return ScheduleDTO.fromEntity(schedules);
+    }
+
+    /**
+     * 특정 날짜의 일정 조회
+     */
+    @Transactional(readOnly = true)
+    public List<ScheduleDTO> getScheduleByDate(LocalDate date){
         Long memberId = getCurrentMemberId();
 
+        // 변수 설정 해야함. 왜? 레파지톨에서 가져올거기 떄문에 변수를 할당 받아야함.
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay().minusNanos(1);
 
-        return scheduleRepository.findSchedulesForDateRangeAndMember(
-                startOfDay, endOfDay, memberId);
+        List<Schedules> schedules = scheduleRepository.findSchedulesForDateRangeAndMember(startOfDay, endOfDay, memberId);
+
+        // stream 으로 dto -> entity 변환 시키면서 특정 날짜 일정 조회 된것을 List 형태로 리턴
+        return schedules.stream()
+                .map(ScheduleDTO::fromEntity)
+                .collect(Collectors.toList());
     }
 
     /**
-     * 현재 사용자의 일정 내용을 수정합니다.
+     * 새 일정 추가 (일반)
      */
     @Transactional
-    public Schedules updateSchedule(Long id, ScheduleDTO request) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-        Schedules schedule = scheduleRepository.findByIdAndMemberId(id, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        // 요청에 포함된 필드만 업데이트
-        if (request.getContent() != null) {
-            schedule.setContent(request.getContent());
-        }
-
-        if (request.getStartDate() != null) {
-            schedule.setStartDate(request.getStartDate());
-        }
-
-        if (request.getEndDate() != null) {
-            schedule.setEndDate(request.getEndDate());
-        }
-
-        if (request.getPriority() != null) {
-            schedule.setPriority(request.getPriority());
-        }
-
-        if (request.getDescription() != null) {
-            schedule.setDescription(request.getDescription());
-        }
-
-        if (request.getCompleted() != null) {
-            schedule.setCompleted(request.getCompleted());
-        }
-
-        return scheduleRepository.save(schedule);
-    }
-
-    /**
-     * 일정의 우선순위를 수정합니다.
-     */
-    @Transactional
-    public Schedules updateSchedulePriority(Long id, String priority) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-        Schedules schedule = scheduleRepository.findByIdAndMemberId(id, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        schedule.setPriority(priority);
-        return scheduleRepository.save(schedule);
-    }
-
-    /**
-     * 새 일정을 추가
-     */
-    @Transactional
-    public Schedules addSchedule(ScheduleDTO request) {
+    public ScheduleDTO addSchedule(ScheduleRequest request){
         Long memberId = getCurrentMemberId();
 
-        Schedules schedule = Schedules.builder()
+        // 일정 생성
+        Schedules schedules = Schedules.builder()
+                .memberId(memberId)
                 .content(request.getContent())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .priority(request.getPriority())
                 .description(request.getDescription())
                 .completed(request.getCompleted() != null ? request.getCompleted() : false)
-                .memberId(memberId)
                 .build();
 
-        return scheduleRepository.save(schedule);
+        Schedules savedSchedule = scheduleRepository.save(schedules);
+        return ScheduleDTO.fromEntity(savedSchedule);
     }
 
     /**
-     * 일정을 수정합니다.
+     * 일반 일정 수정
      */
     @Transactional
-    public Schedules updateSchedule(Long id, Schedules updatedSchedule) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+    public ScheduleDTO updateSchedule(Long scheduleId, ScheduleRequest request) {
         Long memberId = getCurrentMemberId();
-        Schedules existingSchedule = scheduleRepository.findByIdAndMemberId(id, memberId)
+
+        // 일정 조회
+        Schedules schedules = scheduleRepository.findByIdAndMemberId(scheduleId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        existingSchedule.setContent(updatedSchedule.getContent());
-        existingSchedule.setStartDate(updatedSchedule.getStartDate());
-        existingSchedule.setEndDate(updatedSchedule.getEndDate());
-        existingSchedule.setCompleted(updatedSchedule.getCompleted());
-        existingSchedule.setPriority(updatedSchedule.getPriority());
-        existingSchedule.setDescription(updatedSchedule.getDescription());
+        // 일정 정보 업데이트 -> Schedule 엔티티안에 ddd 형태로 비즈니스 로직을 만들어둬서 서비스로직에서 불러옴.
+        schedules.updateContent(request.getContent());
+        schedules.updateTimes(request.getStartDate(), request.getEndDate());
+        schedules.updatePriority(request.getPriority());
+        schedules.updateDescription(request.getDescription());
 
-        return scheduleRepository.save(existingSchedule);
+        // 토글 상태가 null이 아니고, 업데이트하는 토글과 클라이언트의 현재 토글이 다르면인데,,, 이 로직은 이미 일정이 완료된 토글 자체인 경우 수정 불가함으로 바꿔야할거같음.
+        if(request.getCompleted() != null && schedules.getCompleted() != request.getCompleted()){
+            schedules.toggleComplete();
+        }
+
+        Schedules updatedSchedule = scheduleRepository.save(schedules);
+        return ScheduleDTO.fromEntity(updatedSchedule);
     }
 
     /**
-     * 일정을 삭제합니다.
+     * 일정 완료 상태 토글
      */
     @Transactional
-    public void deleteSchedule(Long id) {
+    public ScheduleDTO toggleScheduleCompletion(Long scheduleId) {
         Long memberId = getCurrentMemberId();
-        // 본인의 일정만 삭제 가능하도록 검증
-        Schedules schedules = scheduleRepository.findByIdAndMemberId(id, memberId)
+
+        // 일정 조회
+        Schedules schedules = scheduleRepository.findByIdAndMemberId(scheduleId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
+        // 완료 상태 토글
+        schedules.toggleComplete();
+
+        Schedules updatedSchedule = scheduleRepository.save(schedules);
+        return ScheduleDTO.fromEntity(updatedSchedule);
+    }
+
+    /**
+     * 일정 삭제
+     */
+    @Transactional
+    public void deleteSchedules(Long scheduleId) {
+        Long memberId = getCurrentMemberId();
+
+        // 일정 존재 확인
+        Schedules schedules = scheduleRepository.findByIdAndMemberId(scheduleId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        // 일정 삭제
         scheduleRepository.delete(schedules);
-    }
-
-    /**
-     * 일정의 완료 상태를 토글
-     */
-    @Transactional
-    public Schedules toggleScheduleCompletion(Long id) {
-        Long memberId = getCurrentMemberId();
-        Schedules schedule = scheduleRepository.findByIdAndMemberId(id, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        schedule.setCompleted(!schedule.getCompleted());
-        return scheduleRepository.save(schedule);
-    }
-
-    /**
-     * 모든 반복 일정 그룹을 조회
-     */
-    public List<RecurringGroupDTO> getAllRecurringGroups() {
-        Long memberId = getCurrentMemberId();
-
-        // 현재 사용자의 부모 일정을 모두 조회
-        List<Schedules> parentSchedules = scheduleRepository.findByMemberIdAndParentScheduleIdIsNull(memberId)
-                .stream()
-                .filter(s -> s.getRecurrencePattern() != null && !s.getRecurrencePattern().isEmpty())
-                .collect(Collectors.toList());
-
-        List<RecurringGroupDTO> groups = new ArrayList<>();
-
-        for (Schedules parent : parentSchedules) {
-            // 각 부모 일정에 속한 하위 일정 조회
-            List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parent.getId(), memberId);
-
-            if (!childSchedules.isEmpty()) {
-                // 그룹 정보 생성
-                RecurringGroupDTO group = new RecurringGroupDTO();
-                group.setParentSchedule(parent);
-
-                // 시작일과 종료일 계산
-                LocalDate startDate = childSchedules.stream()
-                        .map(s -> s.getStartDate().toLocalDate())
-                        .min(LocalDate::compareTo)
-                        .orElse(null);
-
-                LocalDate endDate = childSchedules.stream()
-                        .map(s -> s.getEndDate().toLocalDate())
-                        .max(LocalDate::compareTo)
-                        .orElse(null);
-
-                // 날짜 포맷팅
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                group.setStartDate(startDate != null ? startDate.format(formatter) : "");
-                group.setEndDate(endDate != null ? endDate.format(formatter) : "");
-
-                // 하위 일정 개수
-                group.setScheduleCount(childSchedules.size());
-
-                groups.add(group);
-            }
-        }
-
-        return groups;
-    }
-
-    /**
-     * 부모 ID로 반복 일정 그룹을 조회합니다.
-     */
-    public List<Schedules> getRecurringSchedulesByParentId(Long parentId) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-
-        // 부모 일정 조회
-        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        // 하위 일정 조회
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
-
-        // 부모 일정과 하위 일정 합치기
-        List<Schedules> allSchedules = new ArrayList<>();
-        allSchedules.add(parentSchedule);
-        allSchedules.addAll(childSchedules);
-
-        return allSchedules;
-    }
-
-    /**
-     * 반복 일정을 추가합니다.
-     */
-    @Transactional
-    public List<Schedules> addRecurringSchedule(RecurringScheduleRequest request) {
-        Long memberId = getCurrentMemberId();
-
-        // 부모 일정 생성
-        Schedules parentSchedule = Schedules.builder()
-                .content(request.getContent())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .completed(false)
-                .recurrencePattern(request.getRecurrencePattern())
-                .priority(request.getPriority())
-                .description(request.getDescription())
-                .memberId(memberId)
-                .build();
-
-        parentSchedule = scheduleRepository.save(parentSchedule);
-
-        List<Schedules> allSchedules = new ArrayList<>();
-        allSchedules.add(parentSchedule);
-
-        // 반복 패턴에 따라 하위 일정 생성
-        List<Schedules> childSchedules = generateChildSchedules(
-                parentSchedule,
-                request.getStartDate(),
-                request.getEndDate(),
-                request.getRecurrencePattern(),
-                memberId
-        );
-
-        if (!childSchedules.isEmpty()) {
-            scheduleRepository.saveAll(childSchedules);
-            allSchedules.addAll(childSchedules);
-        }
-
-        return allSchedules;
-    }
-
-    /**
-     * 반복 일정을 업데이트합니다.
-     */
-    @Transactional
-    public List<Schedules> updateRecurringSchedules(
-            Long parentId,
-            String content,
-            String priority,
-            String recurrencePattern,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            String description
-    ) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-
-        // 부모 일정 조회
-        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        // 기존 하위 일정 조회
-        List<Schedules> existingChildSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
-
-        // 시작일과 종료일이 변경되었는지 확인
-        boolean datesChanged = !parentSchedule.getStartDate().equals(startDate) ||
-                !parentSchedule.getEndDate().equals(endDate) ||
-                !parentSchedule.getRecurrencePattern().equals(recurrencePattern);
-
-        // 부모 일정 업데이트
-        parentSchedule.setContent(content);
-        parentSchedule.setPriority(priority);
-        parentSchedule.setRecurrencePattern(recurrencePattern);
-        parentSchedule.setStartDate(startDate);
-        parentSchedule.setEndDate(endDate);
-        parentSchedule.setDescription(description);
-
-        scheduleRepository.save(parentSchedule);
-
-        // 날짜나 반복 패턴이 변경된 경우 하위 일정 재생성
-        if (datesChanged) {
-            // 기존 하위 일정 삭제
-            if (!existingChildSchedules.isEmpty()) {
-                scheduleRepository.deleteAll(existingChildSchedules);
-            }
-
-            // 새 하위 일정 생성
-            List<Schedules> newChildSchedules = generateChildSchedules(
-                    parentSchedule, startDate, endDate, recurrencePattern, memberId);
-
-            if (!newChildSchedules.isEmpty()) {
-                scheduleRepository.saveAll(newChildSchedules);
-            }
-
-            // 모든 일정 반환
-            List<Schedules> allSchedules = new ArrayList<>();
-            allSchedules.add(parentSchedule);
-            allSchedules.addAll(newChildSchedules);
-            return allSchedules;
-        } else {
-            // 날짜나 반복 패턴이 변경되지 않은 경우, 하위 일정 내용만 업데이트
-            for (Schedules child : existingChildSchedules) {
-                child.setContent(content);
-                child.setPriority(priority);
-                // 설명은 부모 일정에만 저장하고 하위 일정에는 복사하지 않음
-            }
-
-            if (!existingChildSchedules.isEmpty()) {
-                scheduleRepository.saveAll(existingChildSchedules);
-            }
-
-            // 모든 일정 반환
-            List<Schedules> allSchedules = new ArrayList<>();
-            allSchedules.add(parentSchedule);
-            allSchedules.addAll(existingChildSchedules);
-            return allSchedules;
-        }
-    }
-
-    /**
-     * 반복 일정을 부분적으로 업데이트합니다.
-     */
-    @Transactional
-    public List<Schedules> patchRecurringSchedules(Long parentId, Map<String, Object> updates) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-
-        // 부모 일정 조회
-        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        // 업데이트할 필드 적용
-        if (updates.containsKey("content")) {
-            parentSchedule.setContent((String) updates.get("content"));
-        }
-
-        if (updates.containsKey("description")) {
-            parentSchedule.setDescription((String) updates.get("description"));
-        }
-
-        if (updates.containsKey("priority")) {
-            parentSchedule.setPriority((String) updates.get("priority"));
-        }
-
-        // 부모 일정 저장
-        scheduleRepository.save(parentSchedule);
-
-        // 모든 하위 일정 조회
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
-
-        // 하위 일정들도 업데이트
-        if (!childSchedules.isEmpty()) {
-            for (Schedules child : childSchedules) {
-                if (updates.containsKey("content")) {
-                    child.setContent(parentSchedule.getContent());
-                }
-
-                if (updates.containsKey("priority")) {
-                    child.setPriority(parentSchedule.getPriority());
-                }
-
-                // 설명은 부모 일정에만 저장하고 하위 일정에는 복사하지 않음
-            }
-
-            // 하위 일정 저장
-            scheduleRepository.saveAll(childSchedules);
-        }
-
-        // 부모 일정과 하위 일정을 합친 목록 반환
-        List<Schedules> allSchedules = new ArrayList<>();
-        allSchedules.add(parentSchedule);
-        allSchedules.addAll(childSchedules);
-        return allSchedules;
-    }
-
-    /**
-     * 반복 일정과 모든 하위 일정을 삭제합니다.
-     */
-    @Transactional
-    public void deleteRecurringSchedules(Long parentId) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-
-        // 부모 일정 확인
-        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        // 하위 일정 조회 및 알림 삭제
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
-        if (!childSchedules.isEmpty()) {
-            // 하위 일정 삭제
-            scheduleRepository.deleteAll(childSchedules);
-        }
-        // 부모 일정 삭제
-        scheduleRepository.delete(parentSchedule);
-    }
-
-    /**
-     * 반복 일정의 모든 하위 일정 완료 상태를 설정합니다.
-     */
-    @Transactional
-    public List<Schedules> markAllRecurringSchedules(Long parentId, boolean completed) {
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
-        Long memberId = getCurrentMemberId();
-
-        // 부모 일정 확인
-        scheduleRepository.findByIdAndMemberId(parentId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        // 하위 일정 조회
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
-
-        // 하위 일정 완료 상태 설정
-        for (Schedules child : childSchedules) {
-            child.setCompleted(completed);
-        }
-
-        // 저장 및 반환
-        return scheduleRepository.saveAll(childSchedules);
-    }
-
-    /**
-     * 반복 패턴에 따라 하위 일정을 생성합니다.
-     */
-    private List<Schedules> generateChildSchedules(
-            Schedules parentSchedule,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            String recurrencePattern,
-            Long memberId
-    ) {
-        List<Schedules> childSchedules = new ArrayList<>();
-        LocalDate start = startDate.toLocalDate();
-        LocalDate end = endDate.toLocalDate();
-
-        // 시작 시간과 종료 시간
-        int startHour = startDate.getHour();
-        int startMinute = startDate.getMinute();
-        int endHour = endDate.getHour();
-        int endMinute = endDate.getMinute();
-
-        switch (recurrencePattern) {
-            case "DAILY":
-                // 매일 반복
-                for (LocalDate date = start; !date.isAfter(end); date = date.plusDays(1)) {
-                    // 부모 일정과 같은 날짜는 건너뜀
-                    if (date.equals(start)) {
-                        continue;
-                    }
-
-                    Schedules child = createChildSchedule(
-                            parentSchedule,
-                            date,
-                            startHour,
-                            startMinute,
-                            endHour,
-                            endMinute,
-                            memberId
-                    );
-                    childSchedules.add(child);
-                }
-                break;
-
-            case "WEEKLY":
-                // 매주 같은 요일에 반복
-                DayOfWeek dayOfWeek = start.getDayOfWeek();
-                for (LocalDate date = start.plusWeeks(1); !date.isAfter(end); date = date.plusWeeks(1)) {
-                    Schedules child = createChildSchedule(
-                            parentSchedule,
-                            date,
-                            startHour,
-                            startMinute,
-                            endHour,
-                            endMinute,
-                            memberId
-                    );
-                    childSchedules.add(child);
-                }
-                break;
-
-            case "WEEKDAY":
-                // 평일(월~금)에만 반복
-                for (LocalDate date = start.plusDays(1); !date.isAfter(end); date = date.plusDays(1)) {
-                    DayOfWeek day = date.getDayOfWeek();
-                    if (day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY) {
-                        Schedules child = createChildSchedule(
-                                parentSchedule,
-                                date,
-                                startHour,
-                                startMinute,
-                                endHour,
-                                endMinute,
-                                memberId
-                        );
-                        childSchedules.add(child);
-                    }
-                }
-                break;
-        }
-
-        return childSchedules;
-    }
-
-    /**
-     * 하위 일정 객체를 생성합니다.
-     */
-    private Schedules createChildSchedule(
-            Schedules parentSchedule,
-            LocalDate date,
-            int startHour,
-            int startMinute,
-            int endHour,
-            int endMinute,
-            Long memberId
-    ) {
-        LocalDateTime childStartDate = date.atTime(startHour, startMinute);
-        LocalDateTime childEndDate = date.atTime(endHour, endMinute);
-
-        return Schedules.builder()
-                .content(parentSchedule.getContent())
-                .startDate(childStartDate)
-                .endDate(childEndDate)
-                .completed(false)
-                .parentScheduleId(parentSchedule.getId())
-                .priority(parentSchedule.getPriority())
-                .memberId(memberId)
-                .build();
     }
 }

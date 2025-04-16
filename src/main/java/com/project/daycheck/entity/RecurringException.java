@@ -6,6 +6,7 @@ import org.eclipse.angus.mail.imap.ACL;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -29,7 +30,7 @@ public class RecurringException {
     private RecurringSchedule recurringSchedule;
 
     @Column(nullable = false)
-    private LocalDateTime exceptionDate; // 예외가 적용되는 날짜
+    private LocalDate exceptionDate; // 예외가 적용되는 날짜
 
     @Column(nullable = false)
     private String exceptionType; // SKIP(건너뛰기), MODIFY(수정)

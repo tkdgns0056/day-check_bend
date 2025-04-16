@@ -2,20 +2,18 @@ package com.project.daycheck.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.project.daycheck.entity.Schedules;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 
-@Data
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ScheduleDTO {
+
     private Long id;
     private String content;
 
@@ -26,8 +24,8 @@ public class ScheduleDTO {
     private LocalDateTime endDate;
 
     private Boolean completed; // 일정 완료/미완료
-    private String recurrencePattern; // 반복 패턴
-    private Long parentScheduleId; // 부모일정(개별일정) - 반복 일정 설정 시 필요
+//    private String recurrencePattern; // 반복 패턴
+//    private Long parentScheduleId; // 부모일정(개별일정) - 반복 일정 설정 시 필요
     private String priority;
     private String description;
     private LocalDateTime createdAt;
@@ -35,15 +33,16 @@ public class ScheduleDTO {
 
 
     // Entity 변환 메소드
-    public Schedules toEntity(){
+    public Schedules toEntity(Long memberId){
         return Schedules.builder()
                 .id(id)
+                .memberId(memberId)
                 .content(content)
                 .startDate(startDate)
                 .endDate(endDate)
-                .completed(completed)
-                .recurrencePattern(recurrencePattern)
-                .parentScheduleId(parentScheduleId)
+                .completed(completed != null ? completed : false)
+//                .recurrencePattern(recurrencePattern)
+//                .parentScheduleId(parentScheduleId)
                 .priority(priority)
                 .description(description)
                 .build();
@@ -57,8 +56,8 @@ public class ScheduleDTO {
                 .startDate(schedules.getStartDate())
                 .endDate(schedules.getEndDate())
                 .completed(schedules.getCompleted())
-                .recurrencePattern(schedules.getRecurrencePattern())
-                .parentScheduleId(schedules.getParentScheduleId())
+//                .recurrencePattern(schedules.getRecurrencePattern())
+//                .parentScheduleId(schedules.getParentScheduleId())
                 .priority(schedules.getPriority())
                 .description(schedules.getDescription())
                 .createdAt(schedules.getCreatedAt())
