@@ -25,6 +25,7 @@ public enum ErrorCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A002", "만료된 토큰입니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A003", "이메일 또는 비밀번호가 일치하지 않습니다."),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "A004", "유효하지 않은 인증 코드입니다."),
+    UNAUTHORIZED_ACCESS(HttpStatus.UNAUTHORIZED, "A005", "인증되지 않은 접근입니다."),
 
     // 이메일 관련 에러
     EMAIL_SEND_FAIL(HttpStatus.INTERNAL_SERVER_ERROR, "E001", "이메일 발송에 실패했습니다."),
@@ -32,7 +33,11 @@ public enum ErrorCode {
     // 입력값 검증 에러
     INVALID_EMAIL_FORMAT(HttpStatus.BAD_REQUEST, "V001", "이메일 형식이 올바르지 않습니다."),
     INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "V002", "비밀번호는 영문자, 숫자, 특수문자를 포함하여 8자 이상이어야 합니다."),
-    INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "V003", "이름은 공백 없이 2자 이상 20자 이하여야 합니다.");
+    INVALID_NAME_FORMAT(HttpStatus.BAD_REQUEST, "V003", "이름은 공백 없이 2자 이상 20자 이하여야 합니다."),
+
+    // 일정 관련 에러
+    SCHEDULE_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "존재하지 않는 일정입니다."),
+    UNAUTHORIZED_SCHEDULE_ACCESS(HttpStatus.FORBIDDEN, "S002", "해당 일정에 접근 권한이 없습니다.");
 
     private final HttpStatus status;
     private final String code;

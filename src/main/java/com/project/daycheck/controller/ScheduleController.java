@@ -1,7 +1,6 @@
 package com.project.daycheck.controller;
 
 import com.project.daycheck.dto.ScheduleDTO;
-import com.project.daycheck.dto.ScheduleRequest;
 import com.project.daycheck.entity.Schedules;
 import com.project.daycheck.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +22,7 @@ public class ScheduleController {
     private final ScheduleService scheduleService;
 
     // 특정 날짜 일정 조회
-    @Operation(summary = "일정 조회", description = "등록한 일정을 조회한다.")
+    @Operation(summary = "일정 조회", description = "로그인한 사용자의 특정 날짜 일정을 조회한다.")
     @GetMapping("/{date}")
     public ResponseEntity<List<Schedules>> getSchedulesByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {

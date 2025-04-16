@@ -14,6 +14,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import static jakarta.persistence.ConstraintMode.*;
+
 
 @Entity
 @Data
@@ -24,6 +26,13 @@ public class Schedules {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "member_id", nullable = false)
+    private Long memberId;
+
+    @ManyToOne(fetch = FetchType.LAZY) // 지연 로딩
+    @JoinColumn(name = "member_id",  insertable = false, updatable = false)
+    private Member member;
 
     @Column(nullable = false)
     private String content;

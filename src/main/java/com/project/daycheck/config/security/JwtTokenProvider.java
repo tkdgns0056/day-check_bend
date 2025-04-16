@@ -34,7 +34,9 @@ public class JwtTokenProvider {
             @Value("${spring.jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds  ) {
 
         byte[] keyBytes = Decoders.BASE64.decode(secret);
-        this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+        // this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512); // 매번 새로운 키 생성
+        // 2025.04.11 수정 application.yml 파일 읽음.
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
         this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
     }

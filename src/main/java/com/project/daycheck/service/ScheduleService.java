@@ -3,10 +3,15 @@ package com.project.daycheck.service;
 import com.project.daycheck.dto.RecurringGroupDTO;
 import com.project.daycheck.dto.ScheduleDTO;
 import com.project.daycheck.dto.request.RecurringScheduleRequest;
+import com.project.daycheck.entity.Member;
 import com.project.daycheck.entity.Schedules;
+import com.project.daycheck.exception.BusinessException;
+import com.project.daycheck.exception.ErrorCode;
 import com.project.daycheck.repository.ScheduleRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
@@ -23,31 +28,54 @@ import java.util.stream.Collectors;
 public class ScheduleService {
 
     private final ScheduleRepository scheduleRepository;
-
+    private final MemberService memberService;
 
     /**
-     * 모든 일정을 조회합니다.
+     * 현재 인증된 사용자의 ID를 가져옴.
+     * 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
+     */
+    private Long getCurrentMemberId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if(authentication == null || !authentication.isAuthenticated()){
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        Member member = memberService.findMemberByEmail(authentication.getName());
+        return member.getId();
+    }
+
+    /**
+     * 현재 사용자의 모든 일정을 조회합니다.
      */
     public List<Schedules> getAllSchedules() {
-        return scheduleRepository.findAll();
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
+        Long memberId = getCurrentMemberId();
+        return scheduleRepository.findByMemberId(memberId);
     }
 
     /**
-     * 특정 날짜의 일정을 조회합니다.
+     * 현재 사용자의 특정 날짜의 일정을 조회합니다.
      */
     public List<Schedules> getSchedulesByDate(LocalDate date) {
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
+        Long memberId = getCurrentMemberId();
+
         LocalDateTime startOfDay = date.atStartOfDay();
-        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay().minusSeconds(1);
-        return scheduleRepository.findByStartDateBetweenOrEndDateBetween(startOfDay, endOfDay, startOfDay, endOfDay);
+        LocalDateTime endOfDay = date.plusDays(1).atStartOfDay().minusNanos(1);
+
+        return scheduleRepository.findSchedulesForDateRangeAndMember(
+                startOfDay, endOfDay, memberId);
     }
 
     /**
-     * 일정 내용을 수정합니다.
+     * 현재 사용자의 일정 내용을 수정합니다.
      */
     @Transactional
     public Schedules updateSchedule(Long id, ScheduleDTO request) {
-        Schedules schedule = scheduleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("일정을 찾을 수 없습니다."));
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+        Schedules schedule = scheduleRepository.findByIdAndMemberId(id, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         // 요청에 포함된 필드만 업데이트
         if (request.getContent() != null) {
@@ -82,18 +110,22 @@ public class ScheduleService {
      */
     @Transactional
     public Schedules updateSchedulePriority(Long id, String priority) {
-        Schedules schedule = scheduleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("일정을 찾을 수 없습니다."));
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+        Schedules schedule = scheduleRepository.findByIdAndMemberId(id, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         schedule.setPriority(priority);
         return scheduleRepository.save(schedule);
     }
 
     /**
-     * 새 일정을 추가합니다.
+     * 새 일정을 추가
      */
     @Transactional
     public Schedules addSchedule(ScheduleDTO request) {
+        Long memberId = getCurrentMemberId();
+
         Schedules schedule = Schedules.builder()
                 .content(request.getContent())
                 .startDate(request.getStartDate())
@@ -101,22 +133,21 @@ public class ScheduleService {
                 .priority(request.getPriority())
                 .description(request.getDescription())
                 .completed(request.getCompleted() != null ? request.getCompleted() : false)
+                .memberId(memberId)
                 .build();
 
-        Schedules savedSchedule = scheduleRepository.save(schedule);
-
-
-        return savedSchedule;
+        return scheduleRepository.save(schedule);
     }
-
 
     /**
      * 일정을 수정합니다.
      */
     @Transactional
     public Schedules updateSchedule(Long id, Schedules updatedSchedule) {
-        Schedules existingSchedule = scheduleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("일정을 찾을 수 없습니다."));
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+        Schedules existingSchedule = scheduleRepository.findByIdAndMemberId(id, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         existingSchedule.setContent(updatedSchedule.getContent());
         existingSchedule.setStartDate(updatedSchedule.getStartDate());
@@ -133,27 +164,35 @@ public class ScheduleService {
      */
     @Transactional
     public void deleteSchedule(Long id) {
-        scheduleRepository.deleteById(id);
+        Long memberId = getCurrentMemberId();
+        // 본인의 일정만 삭제 가능하도록 검증
+        Schedules schedules = scheduleRepository.findByIdAndMemberId(id, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        scheduleRepository.delete(schedules);
     }
 
     /**
-     * 일정의 완료 상태를 토글합니다.
+     * 일정의 완료 상태를 토글
      */
     @Transactional
     public Schedules toggleScheduleCompletion(Long id) {
-        Schedules schedule = scheduleRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("일정을 찾을 수 없습니다."));
-        schedule.setCompleted(!schedule.getCompleted());
+        Long memberId = getCurrentMemberId();
+        Schedules schedule = scheduleRepository.findByIdAndMemberId(id, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
+        schedule.setCompleted(!schedule.getCompleted());
         return scheduleRepository.save(schedule);
     }
 
     /**
-     * 모든 반복 일정 그룹을 조회합니다.
+     * 모든 반복 일정 그룹을 조회
      */
     public List<RecurringGroupDTO> getAllRecurringGroups() {
-        // 부모 일정을 모두 조회
-        List<Schedules> parentSchedules = scheduleRepository.findByParentScheduleIdIsNull()
+        Long memberId = getCurrentMemberId();
+
+        // 현재 사용자의 부모 일정을 모두 조회
+        List<Schedules> parentSchedules = scheduleRepository.findByMemberIdAndParentScheduleIdIsNull(memberId)
                 .stream()
                 .filter(s -> s.getRecurrencePattern() != null && !s.getRecurrencePattern().isEmpty())
                 .collect(Collectors.toList());
@@ -162,7 +201,7 @@ public class ScheduleService {
 
         for (Schedules parent : parentSchedules) {
             // 각 부모 일정에 속한 하위 일정 조회
-            List<Schedules> childSchedules = scheduleRepository.findByParentScheduleId(parent.getId());
+            List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parent.getId(), memberId);
 
             if (!childSchedules.isEmpty()) {
                 // 그룹 정보 생성
@@ -199,12 +238,15 @@ public class ScheduleService {
      * 부모 ID로 반복 일정 그룹을 조회합니다.
      */
     public List<Schedules> getRecurringSchedulesByParentId(Long parentId) {
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+
         // 부모 일정 조회
-        Schedules parentSchedule = scheduleRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("반복 일정을 찾을 수 없습니다."));
+        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         // 하위 일정 조회
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleId(parentId);
+        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
 
         // 부모 일정과 하위 일정 합치기
         List<Schedules> allSchedules = new ArrayList<>();
@@ -219,6 +261,8 @@ public class ScheduleService {
      */
     @Transactional
     public List<Schedules> addRecurringSchedule(RecurringScheduleRequest request) {
+        Long memberId = getCurrentMemberId();
+
         // 부모 일정 생성
         Schedules parentSchedule = Schedules.builder()
                 .content(request.getContent())
@@ -228,6 +272,7 @@ public class ScheduleService {
                 .recurrencePattern(request.getRecurrencePattern())
                 .priority(request.getPriority())
                 .description(request.getDescription())
+                .memberId(memberId)
                 .build();
 
         parentSchedule = scheduleRepository.save(parentSchedule);
@@ -240,14 +285,14 @@ public class ScheduleService {
                 parentSchedule,
                 request.getStartDate(),
                 request.getEndDate(),
-                request.getRecurrencePattern()
+                request.getRecurrencePattern(),
+                memberId
         );
 
         if (!childSchedules.isEmpty()) {
             scheduleRepository.saveAll(childSchedules);
             allSchedules.addAll(childSchedules);
         }
-
 
         return allSchedules;
     }
@@ -265,12 +310,15 @@ public class ScheduleService {
             LocalDateTime endDate,
             String description
     ) {
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+
         // 부모 일정 조회
-        Schedules parentSchedule = scheduleRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("반복 일정을 찾을 수 없습니다."));
+        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         // 기존 하위 일정 조회
-        List<Schedules> existingChildSchedules = scheduleRepository.findByParentScheduleId(parentId);
+        List<Schedules> existingChildSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
 
         // 시작일과 종료일이 변경되었는지 확인
         boolean datesChanged = !parentSchedule.getStartDate().equals(startDate) ||
@@ -289,7 +337,6 @@ public class ScheduleService {
 
         // 날짜나 반복 패턴이 변경된 경우 하위 일정 재생성
         if (datesChanged) {
-
             // 기존 하위 일정 삭제
             if (!existingChildSchedules.isEmpty()) {
                 scheduleRepository.deleteAll(existingChildSchedules);
@@ -297,7 +344,7 @@ public class ScheduleService {
 
             // 새 하위 일정 생성
             List<Schedules> newChildSchedules = generateChildSchedules(
-                    parentSchedule, startDate, endDate, recurrencePattern);
+                    parentSchedule, startDate, endDate, recurrencePattern, memberId);
 
             if (!newChildSchedules.isEmpty()) {
                 scheduleRepository.saveAll(newChildSchedules);
@@ -333,9 +380,12 @@ public class ScheduleService {
      */
     @Transactional
     public List<Schedules> patchRecurringSchedules(Long parentId, Map<String, Object> updates) {
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+
         // 부모 일정 조회
-        Schedules parentSchedule = scheduleRepository.findById(parentId)
-                .orElseThrow(() -> new RuntimeException("반복 일정을 찾을 수 없습니다."));
+        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
         // 업데이트할 필드 적용
         if (updates.containsKey("content")) {
@@ -354,7 +404,7 @@ public class ScheduleService {
         scheduleRepository.save(parentSchedule);
 
         // 모든 하위 일정 조회
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleId(parentId);
+        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
 
         // 하위 일정들도 업데이트
         if (!childSchedules.isEmpty()) {
@@ -386,15 +436,21 @@ public class ScheduleService {
      */
     @Transactional
     public void deleteRecurringSchedules(Long parentId) {
-        // 하위 일정 조회 및 알림 삭제
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleId(parentId);
-        if (!childSchedules.isEmpty()) {
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
 
+        // 부모 일정 확인
+        Schedules parentSchedule = scheduleRepository.findByIdAndMemberId(parentId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
+        // 하위 일정 조회 및 알림 삭제
+        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
+        if (!childSchedules.isEmpty()) {
             // 하위 일정 삭제
             scheduleRepository.deleteAll(childSchedules);
         }
         // 부모 일정 삭제
-        scheduleRepository.deleteById(parentId);
+        scheduleRepository.delete(parentSchedule);
     }
 
     /**
@@ -402,8 +458,15 @@ public class ScheduleService {
      */
     @Transactional
     public List<Schedules> markAllRecurringSchedules(Long parentId, boolean completed) {
+        // 2025.04.11 추가 - 사용자 id기준으로 데이터 확인
+        Long memberId = getCurrentMemberId();
+
+        // 부모 일정 확인
+        scheduleRepository.findByIdAndMemberId(parentId, memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
+
         // 하위 일정 조회
-        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleId(parentId);
+        List<Schedules> childSchedules = scheduleRepository.findByParentScheduleIdAndMemberId(parentId, memberId);
 
         // 하위 일정 완료 상태 설정
         for (Schedules child : childSchedules) {
@@ -421,7 +484,8 @@ public class ScheduleService {
             Schedules parentSchedule,
             LocalDateTime startDate,
             LocalDateTime endDate,
-            String recurrencePattern
+            String recurrencePattern,
+            Long memberId
     ) {
         List<Schedules> childSchedules = new ArrayList<>();
         LocalDate start = startDate.toLocalDate();
@@ -448,7 +512,8 @@ public class ScheduleService {
                             startHour,
                             startMinute,
                             endHour,
-                            endMinute
+                            endMinute,
+                            memberId
                     );
                     childSchedules.add(child);
                 }
@@ -464,7 +529,8 @@ public class ScheduleService {
                             startHour,
                             startMinute,
                             endHour,
-                            endMinute
+                            endMinute,
+                            memberId
                     );
                     childSchedules.add(child);
                 }
@@ -481,7 +547,8 @@ public class ScheduleService {
                                 startHour,
                                 startMinute,
                                 endHour,
-                                endMinute
+                                endMinute,
+                                memberId
                         );
                         childSchedules.add(child);
                     }
@@ -501,7 +568,8 @@ public class ScheduleService {
             int startHour,
             int startMinute,
             int endHour,
-            int endMinute
+            int endMinute,
+            Long memberId
     ) {
         LocalDateTime childStartDate = date.atTime(startHour, startMinute);
         LocalDateTime childEndDate = date.atTime(endHour, endMinute);
@@ -513,6 +581,7 @@ public class ScheduleService {
                 .completed(false)
                 .parentScheduleId(parentSchedule.getId())
                 .priority(parentSchedule.getPriority())
+                .memberId(memberId)
                 .build();
     }
 }
