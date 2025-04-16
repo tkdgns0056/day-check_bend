@@ -14,7 +14,9 @@ import java.util.List;
  * 반복 일정 엔티티
  * 특정 패턴으로 반복되는 일정을 나타냄
  */
+
 @Entity
+@Table(name = "recurring_schedule")
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -38,7 +40,7 @@ public class RecurringSchedule {
     @Column(nullable = false)
     private String patternType; // DAILY, WEEKLY, MONTHLY, YEARLY, CUSTOM 등등
 
-    @Column(nullable = false, columnDefinition = "INT DEFAULT 1")
+    @Column(name = "`interval`", nullable = false, columnDefinition = "INT DEFAULT 1")
     private Integer interval; // 반복 간격(ex. 2주마다, 3개월마다)
 
     @Column
@@ -55,7 +57,7 @@ public class RecurringSchedule {
     private LocalDateTime startDate; // 전체 반복 시작
 
     @Column
-    @JsonFormat(pattern = "yyy-MM-dd'T'HH:mm")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime endDate; // 전체 반복 종료
 
     @Column

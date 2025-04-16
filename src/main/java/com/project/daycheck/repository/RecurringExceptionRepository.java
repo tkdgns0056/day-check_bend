@@ -26,7 +26,7 @@ public interface RecurringExceptionRepository  extends JpaRepository<RecurringEx
     List<RecurringException> findByRecurringScheduleIdAndExceptionType(Long recurringScheduleId, String exceptionType);
 
     // 특정 멤버의 특정 날짜 예외 조회
-    @Query("SELECT e FROM RecurringException  e JOIN e.recurringSchedule rs" +
+    @Query("SELECT e FROM RecurringException  e JOIN e.recurringSchedule rs " +
             "WHERE rs.memberId = :memberId AND e.exceptionDate = :date"
           )
     List<RecurringException> findByMemberIdAndDate(@Param("memberId") Long memberId, @Param("date") LocalDate date);

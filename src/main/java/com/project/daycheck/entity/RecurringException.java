@@ -25,8 +25,11 @@ public class RecurringException {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "recurring_schedule_id", nullable = false)
+    private Long recurringScheduleId;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recurring_schedule_id", nullable = false)
+    @JoinColumn(name = "recurring_schedule_id", insertable = false, updatable = false)
     private RecurringSchedule recurringSchedule;
 
     @Column(nullable = false)

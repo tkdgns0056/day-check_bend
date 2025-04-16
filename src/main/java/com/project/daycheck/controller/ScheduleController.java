@@ -24,40 +24,9 @@ public class ScheduleController {
     // 특정 날짜 일정 조회
     @Operation(summary = "일정 조회", description = "로그인한 사용자의 특정 날짜 일정을 조회한다.")
     @GetMapping("/{date}")
-    public ResponseEntity<List<Schedules>> getSchedulesByDate(
+    public ResponseEntity<List<ScheduleDTO>> getSchedulesByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        List<Schedules> schedules = scheduleService.getSchedulesByDate(date);
+        List<ScheduleDTO> schedules = scheduleService.getScheduleByDate(date);
         return ResponseEntity.ok(schedules);
     }
-
-    // 일정 추가
-    @PostMapping
-    public ResponseEntity<Schedules> addSchedule(@RequestBody ScheduleDTO request) {
-        Schedules savedSchedule = scheduleService.addSchedule(request);
-        return ResponseEntity.ok(savedSchedule);
-    }
-
-    // 일정 수정 (모든 필드 수정 가능)
-    @PutMapping("/{id}")
-    public ResponseEntity<Schedules> updateSchedule(
-            @PathVariable Long id,
-            @RequestBody ScheduleDTO request) {
-        Schedules updatedSchedule = scheduleService.updateSchedule(id, request);
-        return ResponseEntity.ok(updatedSchedule);
-    }
-
-    // 일정 완료 상태 토글
-    @PatchMapping("/{id}/complete")
-    public ResponseEntity<Schedules> toggleComplete(@PathVariable Long id) {
-        Schedules updatedSchedule = scheduleService.toggleScheduleCompletion(id);
-        return ResponseEntity.ok(updatedSchedule);
-    }
-
-    // 일정 삭제
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSchedule(@PathVariable Long id) {
-        scheduleService.deleteSchedule(id);
-        return ResponseEntity.ok().build();
-    }
-
 }

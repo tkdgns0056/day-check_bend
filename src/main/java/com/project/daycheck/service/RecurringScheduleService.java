@@ -102,7 +102,7 @@ public class RecurringScheduleService {
 
                 // 건너뛰기 예외가 있으면 스킵
                 if(exceptionOpt.isPresent() && "SKIP".equals(exceptionOpt.get().getExceptionType())){
-                    continue;;
+                    continue;
                 }
 
                 // 일정 정보 생성
@@ -317,10 +317,10 @@ public class RecurringScheduleService {
             RecurringSchedule updatedSchedule = RecurringSchedule.builder()
                     .id(recurringSchedule.getId())
                     .memberId(memberId)
-                    .title(request.getContent() != null ? request.getContent() : recurringSchedule.getContent())
+                    .content(request.getContent() != null ? request.getContent() : recurringSchedule.getContent())
                     .patternType(request.getPatternType())
                     .interval(request.getInterval() != null ? request.getInterval() : recurringSchedule.getInterval())
-                    .daysOfWeek(request.getDayOfWeek())
+                    .dayOfWeek(request.getDayOfWeek())
                     .dayOfMonth(request.getDayOfMonth())
                     .weekOfMonth(request.getWeekOfMonth())
                     .startDate(request.getStartDate() != null ? request.getStartDate() : recurringSchedule.getStartDate())
@@ -343,8 +343,8 @@ public class RecurringScheduleService {
                 recurringSchedule.updateInterval(request.getInterval());
             }
 
-            if (request.getDaysOfWeek() != null) {
-                recurringSchedule.updateDaysOfWeek(request.getDaysOfWeek());
+            if (request.getDayOfWeek() != null) {
+                recurringSchedule.updateDaysOfWeek(request.getDayOfWeek());
             }
 
             if (request.getDayOfMonth() != null) {
