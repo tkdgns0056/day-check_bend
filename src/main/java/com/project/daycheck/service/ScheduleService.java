@@ -1,8 +1,6 @@
 package com.project.daycheck.service;
 
-import com.project.daycheck.dto.RecurringScheduleDTO;
 import com.project.daycheck.dto.ScheduleDTO;
-import com.project.daycheck.dto.request.RecurringScheduleRequest;
 import com.project.daycheck.dto.request.ScheduleRequest;
 import com.project.daycheck.entity.Member;
 import com.project.daycheck.entity.Schedules;
