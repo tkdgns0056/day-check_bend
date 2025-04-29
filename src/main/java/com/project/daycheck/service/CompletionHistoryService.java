@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -26,10 +27,8 @@ public class CompletionHistoryService {
     private final CompletionHistoryRepository completionHistoryRepository;
     private final MemberService memberService;
 
-
     /**
-     * 현재 인증된 사용자의 ID를 가져옴.
-     * 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
+     * 현재 인증된 사용자의 ID를 가져옴
      */
     private Long getCurrentMemberId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -49,11 +48,11 @@ public class CompletionHistoryService {
      * @return 업데이트된 완료 이력 DTO
      */
     @Transactional
-    public CompletionHistoryDTO toggleCompletion(Long scheuldeId, LocalDate date, Boolean isRecurring) {
+    public CompletionHistoryDTO toggleCompletion(Long scheduleId, LocalDate date, Boolean isRecurring) {
         Long memberId = getCurrentMemberId();
 
         // 기존 완료 이력 조회
-        Optional<CompletionHistory> existingHistory = completionHistoryRepository.findByScheduleIdAndCompletionDateAndIsRecurring(scheuldeId, date, isRecurring);
+        Optional<CompletionHistory> existingHistory = completionHistoryRepository.findByScheduleIdAndCompletionDateAndIsRecurring(scheduleId, date, isRecurring);
 
         if(existingHistory.isPresent()){
             // 이력이 있으면 상태 토글
@@ -64,7 +63,7 @@ public class CompletionHistoryService {
         } else {
             // 이력이 없으면 새로 생성 (기본적으로 완료 상태로)
             CompletionHistory newHistory = CompletionHistory.builder()
-                    .scheduleId(scheuldeId)
+                    .scheduleId(scheduleId)
                     .isRecurring(isRecurring)
                     .completionDate(date)
                     .completed(true) // 첫 토글은 완료상태로
@@ -91,6 +90,22 @@ public class CompletionHistoryService {
         return completions.stream()
                 .map(CompletionHistoryDTO::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 특정 날짜의 완료 상태 맵 조회
+     * 키: "[R/S]{scheduleId}", 값: 완료 여부
+     * @param date 날짜
+     * @return 완료 상태 맵
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Boolean> getCompletionMapByDate(LocalDate date) {
+        List<CompletionHistoryDTO> completions = getCompletionByDate(date);
+        return completions.stream()
+                .collect(Collectors.toMap(
+                        c -> (c.getIsRecurring() ? "R" : "S") + c.getScheduleId(),
+                        CompletionHistoryDTO::getCompleted
+                ));
     }
 
     /**

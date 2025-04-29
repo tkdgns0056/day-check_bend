@@ -14,19 +14,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * 일반 일정 서비스
  */
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,8 +31,7 @@ public class ScheduleService {
     private final MemberService memberService;
 
     /**
-     * 현재 인증된 사용자의 ID를 가져옴.
-     * 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
+     * 현재 인증된 사용자의 ID를 가져옴
      */
     private Long getCurrentMemberId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -54,8 +48,6 @@ public class ScheduleService {
      */
     @Transactional(readOnly = true)
     public List<ScheduleDTO> getAllSchedules() {
-
-        // 2025.04.11 추가 - 사용자 id기준으로 데이터 가져옴.
         Long memberId = getCurrentMemberId();
         List<Schedules> schedules = scheduleRepository.findByMemberId(memberId);
 
@@ -77,20 +69,21 @@ public class ScheduleService {
     }
 
     /**
-     * 특정 날짜의 일정 조회 (일반 일정 + 완료 상태가 적용된 반복 일정)
+     * 특정 날짜의 일반 일정만 조회 (완료 상태 제외)
      */
     @Transactional(readOnly = true)
     public List<ScheduleDTO> getScheduleByDate(LocalDate date){
         Long memberId = getCurrentMemberId();
 
-        // 변수 설정 해야함. 왜? 레파지톨에서 가져올거기 떄문에 변수를 할당 받아야함.
+        // 일반 일정만 조회
         LocalDateTime startOfDay = date.atStartOfDay();
         LocalDateTime endOfDay = date.plusDays(1).atStartOfDay().minusNanos(1);
 
-        List<Schedules> schedules = scheduleRepository.findSchedulesForDateRangeAndMember(startOfDay, endOfDay, memberId);
+        List<Schedules> regularSchedules = scheduleRepository.findSchedulesForDateRangeAndMember(
+                startOfDay, endOfDay, memberId);
 
-        // stream 으로 dto -> entity 변환 시키면서 특정 날짜 일정 조회 된것을 List 형태로 리턴
-        return schedules.stream()
+        // 엔티티를 DTO로 변환하여 반환
+        return regularSchedules.stream()
                 .map(ScheduleDTO::fromEntity)
                 .collect(Collectors.toList());
     }
@@ -128,13 +121,13 @@ public class ScheduleService {
         Schedules schedules = scheduleRepository.findByIdAndMemberId(scheduleId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        // 일정 정보 업데이트 -> Schedule 엔티티안에 ddd 형태로 비즈니스 로직을 만들어둬서 서비스로직에서 불러옴.
+        // 일정 정보 업데이트
         schedules.updateContent(request.getContent());
         schedules.updateTimes(request.getStartDate(), request.getEndDate());
         schedules.updatePriority(request.getPriority());
         schedules.updateDescription(request.getDescription());
 
-        // 토글 상태가 null이 아니고, 업데이트하는 토글과 클라이언트의 현재 토글이 다르면인데,,, 이 로직은 이미 일정이 완료된 토글 자체인 경우 수정 불가함으로 바꿔야할거같음.
+        // 완료 상태 업데이트
         if(request.getCompleted() != null && schedules.getCompleted() != request.getCompleted()){
             schedules.toggleComplete();
         }
