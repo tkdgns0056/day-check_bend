@@ -34,9 +34,9 @@ spring:
         size: 5 # 스케줄러 스레드 풀 크기
 
   jwt:
-    secret: "aGVsbG9Xb3JsZC1vbmV2b2x2ZXJ5cGVyZXBzYXNzYmFsbGV0QGZvc3Rlci1lbnZpb3JvbWVudHNpZ3RpYz9wZXJmb3JtZWdvc3lzdGVtVGhpcyJzYmFmZWRyZW1wZXZpb3VsYWdldGVuY2VsdC1saXN0ZXJzYXppbGl0bGV0ZWQgdGhhdCdtZWRpc2lmdWxtYXNrQ29tbXVuaWNhdGlvbmQhIWJlZW5jb3RhaQ=="
-    access-token-validity-in-seconds: 3600  # 1시간
-    refresh-token-validity-in-seconds: 604800  # 7일
+    secret: "n1+cmO5jK90cDPDi1WPOpoJ7quq4mklwljZlUnc8s1ZQ0bqM0abQlCwF7hR+2Al/0XMTp4OXD5oN3tY4bAY8eA=="
+    access-token-validity-in-seconds: 3600
+    refresh-token-validity-in-seconds: 604800
 
   server:
     port: 8080

@@ -26,7 +26,6 @@ public interface RecurringScheduleRepository extends JpaRepository<RecurringSche
             "(rs.endDate IS NULL OR rs.endDate >= :date)")
     List<RecurringSchedule> findActiveOnDate(@Param("memberId") Long memberId, @Param("date") LocalDateTime date);
 
-
     // 특정 패턴 유형의 반복 일정 조회
     List<RecurringSchedule> findByMemberIdAndPatternType(Long memberId, String patternType);
 

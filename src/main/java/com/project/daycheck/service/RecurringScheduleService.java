@@ -7,9 +7,11 @@ import com.project.daycheck.dto.request.RecurringScheduleRequest;
 import com.project.daycheck.entity.Member;
 import com.project.daycheck.entity.RecurringException;
 import com.project.daycheck.entity.RecurringSchedule;
+import com.project.daycheck.entity.RecurringScheduleDay;
 import com.project.daycheck.exception.BusinessException;
 import com.project.daycheck.exception.ErrorCode;
 import com.project.daycheck.repository.RecurringExceptionRepository;
+import com.project.daycheck.repository.RecurringScheduleDayRepository;
 import com.project.daycheck.repository.RecurringScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +28,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
 public class RecurringScheduleService {
 
     private final RecurringScheduleRepository recurringScheduleRepository;
+    private final RecurringScheduleDayRepository recurringScheduleDayRepository;
     private final RecurringExceptionRepository recurringExceptionRepository;
     private final MemberService memberService;
 
@@ -60,8 +62,7 @@ public class RecurringScheduleService {
      * 모든 반복 일정 조회
      */
     @Transactional(readOnly = true)
-    public List<RecurringScheduleDTO> getAllRecurringSchedules(){
-
+    public List<RecurringScheduleDTO> getAllRecurringSchedules() {
         Long memberId = getCurrentMemberId();
         List<RecurringSchedule> recurringSchedules = recurringScheduleRepository.findByMemberId(memberId);
 
@@ -74,7 +75,7 @@ public class RecurringScheduleService {
      * 특정 ID의 반복 일정 조회
      */
     @Transactional(readOnly = true)
-    public RecurringScheduleDTO getRecurringScheduleById(Long recurringScheduleId){
+    public RecurringScheduleDTO getRecurringScheduleById(Long recurringScheduleId) {
         Long memberId = getCurrentMemberId();
         RecurringSchedule recurringSchedule = recurringScheduleRepository.findByIdAndMemberId(recurringScheduleId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
@@ -136,7 +137,7 @@ public class RecurringScheduleService {
                 title = exception.getModifiedTitle();
             }
 
-            if(exception.getModifiedEndTime() != null) {
+            if(exception.getModifiedStartTime() != null) {
                 startDateTime = date.atTime(LocalTime.parse(exception.getModifiedStartTime(), DateTimeFormatter.ofPattern("HH:mm")));
             }
             if (exception.getModifiedEndTime() != null) {
@@ -152,7 +153,7 @@ public class RecurringScheduleService {
             }
         }
 
-        // 가상 일정 DTO생성( 실제 DB 저장 X)
+        // 가상 일정 DTO 생성(실제 DB 저장 X)
         return ScheduleDTO.builder()
                 .id(pattern.getId() * -1) // 음수 ID로 반복 일정 구분
                 .content(title)
@@ -184,10 +185,14 @@ public class RecurringScheduleService {
 
             case "WEEKLY":
                 // 매주 특정 요일 반복
-                if (pattern.getDayOfWeek() != null && !pattern.getDayOfWeek().isEmpty()) {
+                if (!pattern.getScheduleDays().isEmpty()) {
                     // 요일 목록에 포함되는지 확인
-                    String currentDayOfWeek = date.getDayOfWeek().toString();
-                    List<String> daysOfWeek = Arrays.asList(pattern.getDayOfWeek().split(","));
+                    DayOfWeek currentDayOfWeek = date.getDayOfWeek();
+                    boolean isDayMatching = pattern.containsDay(currentDayOfWeek);
+
+                    if (!isDayMatching) {
+                        return false;
+                    }
 
                     // 주 간격 계산
                     LocalDate firstDayOfWeek = patternStartDate
@@ -197,7 +202,7 @@ public class RecurringScheduleService {
 
                     long weeksBetween = ChronoUnit.WEEKS.between(firstDayOfWeek, dateDayOfWeek);
 
-                    return weeksBetween % pattern.getInterval() == 0 && daysOfWeek.contains(currentDayOfWeek);
+                    return weeksBetween % pattern.getInterval() == 0;
                 } else {
                     // 시작일과 같은 요일만 해당
                     boolean isSameDayOfWeek = date.getDayOfWeek() == patternStartDate.getDayOfWeek();
@@ -218,9 +223,9 @@ public class RecurringScheduleService {
                             date.withDayOfMonth(1));
 
                     return isSameDayOfMonth && monthsBetween % pattern.getInterval() == 0;
-                } else if (pattern.getWeekOfMonth() != null && pattern.getDayOfWeek() != null) {
-                    // 매월 n번째 특정 요일 (예: 매월 2번째 월요일)
-                    DayOfWeek dayOfWeek = DayOfWeek.valueOf(pattern.getDayOfWeek());
+                } else if (pattern.getWeekOfMonth() != null && !pattern.getScheduleDays().isEmpty()) {
+                    // 패턴에 저장된 첫 번째 요일 가져오기 (예: "매월 n번째 월요일")
+                    DayOfWeek dayOfWeek = pattern.getScheduleDays().get(0).getDayOfWeek();
                     int weekOfMonth = (date.getDayOfMonth() - 1) / 7 + 1; // 월의 몇 번째 주인지 계산
 
                     boolean isMatchingWeekAndDay = weekOfMonth == pattern.getWeekOfMonth()
@@ -245,11 +250,9 @@ public class RecurringScheduleService {
 
             case "CUSTOM":
                 // 사용자 정의 패턴 (요일 지정)
-                if (pattern.getDayOfWeek() != null && !pattern.getDayOfWeek().isEmpty()) {
-                    String currentDayOfWeek = date.getDayOfWeek().toString();
-                    List<String> daysOfWeek = Arrays.asList(pattern.getDayOfWeek().split(","));
-
-                    return daysOfWeek.contains(currentDayOfWeek);
+                if (!pattern.getScheduleDays().isEmpty()) {
+                    DayOfWeek currentDayOfWeek = date.getDayOfWeek();
+                    return pattern.containsDay(currentDayOfWeek);
                 }
                 return false;
 
@@ -283,7 +286,6 @@ public class RecurringScheduleService {
                 .content(request.getContent())
                 .patternType(request.getPatternType())
                 .interval(request.getInterval() != null ? request.getInterval() : 1)
-                .dayOfWeek(request.getDayOfWeek())
                 .dayOfMonth(request.getDayOfMonth())
                 .weekOfMonth(request.getWeekOfMonth())
                 .startDate(request.getStartDate())
@@ -292,9 +294,25 @@ public class RecurringScheduleService {
                 .endTime(endTime)
                 .priority(request.getPriority())
                 .description(request.getDescription())
+                .scheduleDays(new ArrayList<>())
                 .build();
 
+        // 저장하여 ID 생성
         RecurringSchedule savedSchedule = recurringScheduleRepository.save(recurringSchedule);
+
+        // 요일 정보 추가
+        if (request.getDaysOfWeek() != null && !request.getDaysOfWeek().isEmpty()) {
+            for (DayOfWeek day : request.getDaysOfWeek()) {
+                RecurringScheduleDay scheduleDay = RecurringScheduleDay.builder()
+                        .recurringScheduleId(savedSchedule.getId())
+                        .dayOfWeek(day)
+                        .build();
+                scheduleDay.setRecurringSchedule(savedSchedule);
+                savedSchedule.getScheduleDays().add(scheduleDay);
+                recurringScheduleDayRepository.save(scheduleDay);
+            }
+        }
+
         return RecurringScheduleDTO.fromEntity(savedSchedule);
     }
 
@@ -320,7 +338,6 @@ public class RecurringScheduleService {
                     .content(request.getContent() != null ? request.getContent() : recurringSchedule.getContent())
                     .patternType(request.getPatternType())
                     .interval(request.getInterval() != null ? request.getInterval() : recurringSchedule.getInterval())
-                    .dayOfWeek(request.getDayOfWeek())
                     .dayOfMonth(request.getDayOfMonth())
                     .weekOfMonth(request.getWeekOfMonth())
                     .startDate(request.getStartDate() != null ? request.getStartDate() : recurringSchedule.getStartDate())
@@ -329,7 +346,24 @@ public class RecurringScheduleService {
                     .endTime(request.getEndTime() != null ? request.getEndTime() : recurringSchedule.getEndTime())
                     .priority(request.getPriority() != null ? request.getPriority() : recurringSchedule.getPriority())
                     .description(request.getDescription() != null ? request.getDescription() : recurringSchedule.getDescription())
+                    .scheduleDays(new ArrayList<>())
                     .build();
+
+            // 기존 요일 정보 삭제
+            recurringScheduleDayRepository.deleteByRecurringScheduleId(recurringScheduleId);
+
+            // 새 요일 정보 추가
+            if (request.getDaysOfWeek() != null && !request.getDaysOfWeek().isEmpty()) {
+                for (DayOfWeek day : request.getDaysOfWeek()) {
+                    RecurringScheduleDay scheduleDay = RecurringScheduleDay.builder()
+                            .recurringScheduleId(updatedSchedule.getId())
+                            .dayOfWeek(day)
+                            .build();
+                    scheduleDay.setRecurringSchedule(updatedSchedule);
+                    updatedSchedule.getScheduleDays().add(scheduleDay);
+                    recurringScheduleDayRepository.save(scheduleDay);
+                }
+            }
 
             // 데이터 복사
             for (RecurringException exception : recurringSchedule.getExceptions()) {
@@ -343,8 +377,20 @@ public class RecurringScheduleService {
                 recurringSchedule.updateInterval(request.getInterval());
             }
 
-            if (request.getDayOfWeek() != null) {
-                recurringSchedule.updateDaysOfWeek(request.getDayOfWeek());
+            if (request.getDaysOfWeek() != null) {
+                // 기존 요일 정보 삭제
+                recurringScheduleDayRepository.deleteByRecurringScheduleId(recurringScheduleId);
+
+                // 새 요일 정보 추가
+                for (DayOfWeek day : request.getDaysOfWeek()) {
+                    RecurringScheduleDay scheduleDay = RecurringScheduleDay.builder()
+                            .recurringScheduleId(recurringSchedule.getId())
+                            .dayOfWeek(day)
+                            .build();
+                    scheduleDay.setRecurringSchedule(recurringSchedule);
+                    recurringSchedule.getScheduleDays().add(scheduleDay);
+                    recurringScheduleDayRepository.save(scheduleDay);
+                }
             }
 
             if (request.getDayOfMonth() != null) {
@@ -387,44 +433,11 @@ public class RecurringScheduleService {
         RecurringSchedule recurringSchedule = recurringScheduleRepository.findByIdAndMemberId(recurringScheduleId, memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
 
-        // 예외가 있으면 함께 삭제됨 (orphanRemoval=true)
+        // 요일 정보 삭제
+        recurringScheduleDayRepository.deleteByRecurringScheduleId(recurringScheduleId);
+
+        // 반복 일정 삭제 (예외 정보는 cascade로 함께 삭제됨)
         recurringScheduleRepository.delete(recurringSchedule);
-    }
-
-    /**
-     * 반복 일정 예외 목록 조회
-     */
-    @Transactional(readOnly = true)
-    public List<RecurringExceptionDTO> getExceptionsByRecurringScheduleId(Long recurringScheduleId) {
-        Long memberId = getCurrentMemberId();
-
-        // 반복 일정 존재 확인
-        recurringScheduleRepository.findByIdAndMemberId(recurringScheduleId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        List<RecurringException> exceptions = recurringExceptionRepository.findByRecurringScheduleId(recurringScheduleId);
-
-        return exceptions.stream()
-                .map(RecurringExceptionDTO::fromEntity)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 특정 날짜의 예외 조회
-     */
-    @Transactional(readOnly = true)
-    public RecurringExceptionDTO getExceptionByDate(Long recurringScheduleId, LocalDate date) {
-        Long memberId = getCurrentMemberId();
-
-        // 반복 일정 존재 확인
-        recurringScheduleRepository.findByIdAndMemberId(recurringScheduleId, memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        RecurringException exception = recurringExceptionRepository.findByRecurringScheduleIdAndExceptionDate(
-                        recurringScheduleId, date)
-                .orElseThrow(() -> new BusinessException(ErrorCode.SCHEDULE_NOT_FOUND));
-
-        return RecurringExceptionDTO.fromEntity(exception);
     }
 
     /**
@@ -443,5 +456,4 @@ public class RecurringScheduleService {
 
         return result;
     }
-
 }

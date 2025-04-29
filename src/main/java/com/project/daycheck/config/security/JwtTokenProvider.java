@@ -34,9 +34,16 @@ public class JwtTokenProvider {
             @Value("${spring.jwt.refresh-token-validity-in-seconds}") long refreshTokenValidityInSeconds  ) {
 
         byte[] keyBytes = Decoders.BASE64.decode(secret);
-        // this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512); // 매번 새로운 키 생성
+
+        // 키 길이 확인 및 보장
+        if(keyBytes.length < 64){
+            log.warn("키 길이가 부족합니다. 최소 64바이트 필요. 현재 길이: {}", keyBytes.length);
+        }
+
+//         this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512); // 매번 새로운 키 생성
         // 2025.04.11 수정 application.yml 파일 읽음.
         this.key = Keys.hmacShaKeyFor(keyBytes);
+
         this.accessTokenValidityInMilliseconds = accessTokenValidityInSeconds * 1000;
         this.refreshTokenValidityInMilliseconds = refreshTokenValidityInSeconds * 1000;
     }
@@ -119,6 +126,9 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
+            log.debug("토큰 검증 시도: {}", token);
+            log.debug("사용된 서명 키 길이: {} 바이트", key.getEncoded().length);
+
             Jwts.parserBuilder()
                     .setSigningKey(key)
                     .build()

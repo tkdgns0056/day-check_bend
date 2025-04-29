@@ -1,11 +1,12 @@
 package com.project.daycheck.entity;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.sql.Array;
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +15,6 @@ import java.util.List;
  * 반복 일정 엔티티
  * 특정 패턴으로 반복되는 일정을 나타냄
  */
-
 @Entity
 @Table(name = "recurring_schedule")
 @Getter
@@ -44,20 +44,15 @@ public class RecurringSchedule {
     private Integer interval; // 반복 간격(ex. 2주마다, 3개월마다)
 
     @Column
-    private String dayOfWeek; // 요일 정보(월,수,금 등) = 쉼표로 구분된 문자열
-
-    @Column
     private Integer dayOfMonth; // 매월 n일
 
     @Column
     private Integer weekOfMonth; // 매월 n번쨰 주
 
     @Column
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime startDate; // 전체 반복 시작
 
     @Column
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
     private LocalDateTime endDate; // 전체 반복 종료
 
     @Column
@@ -73,6 +68,9 @@ public class RecurringSchedule {
     private String description; // 일정 설명
 
     @OneToMany(mappedBy = "recurringSchedule", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RecurringScheduleDay> scheduleDays = new ArrayList<>();
+
+    @OneToMany(mappedBy = "recurringSchedule", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RecurringException> exceptions = new ArrayList<>();
 
     @CreationTimestamp
@@ -80,6 +78,34 @@ public class RecurringSchedule {
 
     @UpdateTimestamp
     private LocalDateTime updateAt;
+
+    /**
+     * 요일 추가 메소드
+     */
+    public void addDay(DayOfWeek dayOfWeek) {
+        RecurringScheduleDay scheduleDay = RecurringScheduleDay.builder()
+                .recurringScheduleId(this.id)
+                .dayOfWeek(dayOfWeek)
+                .build();
+
+        scheduleDays.add(scheduleDay);
+        scheduleDay.setRecurringSchedule(this);
+    }
+
+    /**
+     * 요일 제거 메소드
+     */
+    public void removeDay(DayOfWeek dayOfWeek) {
+        scheduleDays.removeIf(day -> day.getDayOfWeek() == dayOfWeek);
+    }
+
+    /**
+     * 특정 요일이 포함되어 있는지 확인
+     */
+    public boolean containsDay(DayOfWeek dayOfWeek) {
+        return scheduleDays.stream()
+                .anyMatch(day -> day.getDayOfWeek() == dayOfWeek);
+    }
 
     /**
      * 반복 일정 제목 수정
@@ -140,13 +166,6 @@ public class RecurringSchedule {
     }
 
     /**
-     * 반복 패턴 요일 수정 (WEEKLY 패턴용)
-     */
-    public void updateDaysOfWeek(String dayOfWeek) {
-        this.dayOfWeek = dayOfWeek;
-    }
-
-    /**
      * 월 기준 날짜 수정 (MONTHLY 패턴용)
      */
     public void updateDayOfMonth(Integer dayOfMonth) {
@@ -167,4 +186,5 @@ public class RecurringSchedule {
         exceptions.add(exception);
         exception.setRecurringSchedule(this);
     }
+
 }

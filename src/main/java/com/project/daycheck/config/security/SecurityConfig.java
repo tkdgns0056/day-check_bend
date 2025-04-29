@@ -50,6 +50,7 @@ public class SecurityConfig {
               .authorizeHttpRequests(authorize -> authorize
                       .requestMatchers("/api/auth/**").permitAll()
                       .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                      .requestMatchers("/api/members/**").authenticated()
                       .anyRequest().authenticated())
 
               // HTTP 기본 인증 비활성화

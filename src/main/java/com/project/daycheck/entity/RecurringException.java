@@ -2,7 +2,6 @@ package com.project.daycheck.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.eclipse.angus.mail.imap.ACL;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -13,11 +12,10 @@ import java.time.LocalDateTime;
  * 반복 일정 예외 엔티티
  * 특정 날짜에 반복 일정을 건너뛰거나 수정하는 데 사용
  */
-
 @Entity
 @Getter
 @Builder
-@NoArgsConstructor(access =  AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class RecurringException {
 

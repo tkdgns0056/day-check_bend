@@ -5,6 +5,7 @@ import com.project.daycheck.service.MemberService;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,6 +29,12 @@ public class MemberController {
      */
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentMember(@AuthenticationPrincipal UserDetails userDetails){
+        // userDetails가 null 인지 확인
+        if(userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "인증이 되지않았습니다,","status", 401));
+        }
+
         Member member = memberService.findMemberByEmail(userDetails.getUsername());
 
         Map<String, Object> response = new HashMap<>();

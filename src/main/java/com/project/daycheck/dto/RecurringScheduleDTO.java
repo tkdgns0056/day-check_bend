@@ -2,10 +2,14 @@ package com.project.daycheck.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.project.daycheck.entity.RecurringSchedule;
-import com.project.daycheck.entity.Schedules;
+import com.project.daycheck.entity.RecurringScheduleDay;
 import lombok.*;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  *  반복 일정 DTO
@@ -20,7 +24,7 @@ public class RecurringScheduleDTO {
     private String content;
     private String patternType; // DAILY, WEEKLY, MONTHLY, YEARLY, CUSTOM
     private Integer interval;
-    private String dayOfWeek;
+    private List<DayOfWeek> daysOfWeek; // 변경됨: String에서 List<DayOfWeek>로
     private Integer dayOfMonth;
     private Integer weekOfMonth;
 
@@ -36,18 +40,16 @@ public class RecurringScheduleDTO {
     private String description;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    // 추가 표시 필드(클라이언트 요청에 따라 설정)
     private Integer exceptionCount; // 예외 개수
 
-    // Entity 변환 매소드
-    public RecurringSchedule toEntity(Long memberId){
-        return RecurringSchedule.builder()
+    // Entity 변환 메소드
+    public RecurringSchedule toEntity(Long memberId) {
+        RecurringSchedule schedule = RecurringSchedule.builder()
                 .id(id)
                 .memberId(memberId)
                 .content(content)
                 .patternType(patternType)
                 .interval(interval != null ? interval : 1)
-                .dayOfWeek(dayOfWeek)
                 .dayOfMonth(dayOfMonth)
                 .weekOfMonth(weekOfMonth)
                 .startDate(startDate)
@@ -56,17 +58,25 @@ public class RecurringScheduleDTO {
                 .endTime(endTime)
                 .priority(priority)
                 .description(description)
+                .scheduleDays(new ArrayList<>())
                 .build();
+
+        return schedule;
     }
 
     // Entity에서 DTO 변환 정적 메소드
     public static RecurringScheduleDTO fromEntity(RecurringSchedule recurringSchedule) {
+        // 요일 정보 추출
+        List<DayOfWeek> daysOfWeek = recurringSchedule.getScheduleDays().stream()
+                .map(RecurringScheduleDay::getDayOfWeek)
+                .collect(Collectors.toList());
+
         return RecurringScheduleDTO.builder()
                 .id(recurringSchedule.getId())
                 .content(recurringSchedule.getContent())
                 .patternType(recurringSchedule.getPatternType())
                 .interval(recurringSchedule.getInterval())
-                .dayOfWeek(recurringSchedule.getDayOfWeek())
+                .daysOfWeek(daysOfWeek)
                 .dayOfMonth(recurringSchedule.getDayOfMonth())
                 .weekOfMonth(recurringSchedule.getWeekOfMonth())
                 .startDate(recurringSchedule.getStartDate())

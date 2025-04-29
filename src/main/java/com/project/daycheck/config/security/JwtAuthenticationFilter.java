@@ -12,6 +12,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Enumeration;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -33,13 +34,33 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
+        // 요청 헤더 전체 로깅
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()){
+            String headerName = headerNames.nextElement();
+            log.debug("Header: {} = {}", headerName, request.getHeader(headerName));
+        }
+
         // 요청 헤더에서 JWT 토큰 추츨
         String jwt = resolverToken(request);
+        log.debug("추출된 JWT 토큰: {}", jwt);
 
         // 토큰이 유효하면 인증 정보 설정
         if(StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-            Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+            try {
+                Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
+                log.debug("생성된 Authentication: {}", authentication);
+
+                if (authentication != null) {
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                } else {
+                    log.error("Authentication is null after token validation");
+                }
+            } catch (Exception e) {
+                log.error("Authentication 생성 중 예외 발생", e);
+            }
+        } else {
+            log.warn("토큰 검증 실패 또는 토큰 없음");
         }
 
         filterChain.doFilter(request, response);

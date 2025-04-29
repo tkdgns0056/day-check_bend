@@ -12,7 +12,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- *  반복 일정 예외 DTO
+ * 반복 일정 예외 DTO
  */
 @Getter
 @Builder
@@ -44,6 +44,7 @@ public class RecurringExceptionDTO {
         return RecurringException.builder()
                 .id(id)
                 .recurringSchedule(recurringSchedule)
+                .recurringScheduleId(recurringSchedule.getId())
                 .exceptionDate(exceptionDate)
                 .exceptionType(exceptionType)
                 .modifiedTitle(modifiedTitle)
