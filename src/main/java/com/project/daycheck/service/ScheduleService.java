@@ -77,7 +77,7 @@ public class ScheduleService {
     }
 
     /**
-     * 특정 날짜의 일정 조회
+     * 특정 날짜의 일정 조회 (일반 일정 + 완료 상태가 적용된 반복 일정)
      */
     @Transactional(readOnly = true)
     public List<ScheduleDTO> getScheduleByDate(LocalDate date){
