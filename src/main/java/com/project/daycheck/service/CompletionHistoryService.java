@@ -119,7 +119,7 @@ public class CompletionHistoryService {
         Long memberId = getCurrentMemberId();
 
         List<CompletionHistory> completions =
-                completionHistoryRepository.findByScheduleIdAndIsRecurring(
+                completionHistoryRepository.findByScheduleIdAndIsRecurringAndMemberId(
                         scheduleId, isRecurring, memberId);
 
         return completions.stream()

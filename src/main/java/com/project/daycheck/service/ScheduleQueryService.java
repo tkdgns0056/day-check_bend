@@ -3,8 +3,10 @@ package com.project.daycheck.service;
 import com.project.daycheck.dto.CompletionHistoryDTO;
 import com.project.daycheck.dto.ScheduleDTO;
 import com.project.daycheck.entity.Member;
+import com.project.daycheck.entity.RecurringSchedule;
 import com.project.daycheck.exception.BusinessException;
 import com.project.daycheck.exception.ErrorCode;
+import com.project.daycheck.repository.RecurringScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -13,10 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -32,6 +31,8 @@ public class ScheduleQueryService {
     private final RecurringScheduleService recurringScheduleService;
     private final CompletionHistoryService completionHistoryService;
     private final MemberService memberService;
+
+    private final RecurringScheduleRepository recurringScheduleRepository;
 
     /**
      * 현재 인증된 사용자의 ID를 가져옴
@@ -57,6 +58,9 @@ public class ScheduleQueryService {
         // 2. 반복 일정 조회
         List<ScheduleDTO> recurringSchedules = recurringScheduleService.getRecurringSchedulesByDate(date);
 
+        // 반복 일정에 isRecurring 및 patternType 필드 추가
+        recurringSchedules = enrichRecurringSchedules(recurringSchedules);
+
         // 3. 완료 상태 조회 및 맵 생성
         List<CompletionHistoryDTO> completions = completionHistoryService.getCompletionByDate(date);
         Map<String, Boolean> completionMap = completions.stream()
@@ -79,16 +83,75 @@ public class ScheduleQueryService {
     }
 
     /**
+     * 반복 일정에 필요한 정보 추가
+     */
+    private List<ScheduleDTO> enrichRecurringSchedules(List<ScheduleDTO> recurringSchedules) {
+        return recurringSchedules.stream()
+                .map(schedule -> {
+                    // 음수 ID를 가진 일정은 반복 일정으로 간주
+                    if (schedule.getId() < 0) {
+                        // DTO에 필요한 필드가 없으므로 새로운 DTO 객체 생성
+                        return ScheduleDTO.builder()
+                                .id(schedule.getId())
+                                .content(schedule.getContent())
+                                .startDate(schedule.getStartDate())
+                                .endDate(schedule.getEndDate())
+                                .completed(schedule.getCompleted())
+                                .priority(schedule.getPriority())
+                                .description(schedule.getDescription())
+                                .createdAt(schedule.getCreatedAt())
+                                .updateAt(schedule.getUpdateAt())
+                                // 추가 필드
+                                .isRecurring(true)
+                                .patternType(getPatternTypeFromId(Math.abs(schedule.getId())))
+                                .build();
+                    }
+                    return schedule;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 반복 일정 ID로부터 패턴 타입 조회
+     */
+    private String getPatternTypeFromId(Long recurringScheduleId) {
+        try {
+            Long memberId = getCurrentMemberId();
+
+            // 데이터베이스에서 반복 일정 조회
+            Optional<RecurringSchedule> scheduleOpt = recurringScheduleRepository.findByIdAndMemberId(
+                    recurringScheduleId, memberId);
+
+            // 조회된 반복 일정이 있으면 패턴 타입 반환
+            if (scheduleOpt.isPresent()) {
+                RecurringSchedule recurringSchedule = scheduleOpt.get();
+                log.debug("반복 일정 패턴 타입 조회: ID={}, 패턴={}",
+                        recurringScheduleId, recurringSchedule.getPatternType());
+                return recurringSchedule.getPatternType();
+            } else {
+                // 일정이 없으면 로그 남기고 기본값 반환
+                log.warn("반복 일정을 찾을 수 없음: ID={}, 회원ID={}", recurringScheduleId, memberId);
+                return "UNKNOWN";
+            }
+        } catch (Exception e) {
+            // 예외 발생 시 로그 기록하고 기본값 반환
+            log.error("반복 일정 패턴 타입 조회 중 오류 발생: ID={}", recurringScheduleId, e);
+            return "UNKNOWN";
+        }
+    }
+
+    /**
      * 완료 상태 적용 헬퍼 메소드
      */
     private void applyCompletionStatus(List<ScheduleDTO> schedules, Map<String, Boolean> completionMap, boolean isRecurring) {
         for (int i = 0; i < schedules.size(); i++) {
             ScheduleDTO schedule = schedules.get(i);
-            String key = (isRecurring ? "R" : "S") + schedule.getId();
+            Long scheduleId = isRecurring ? Math.abs(schedule.getId()) : schedule.getId();
+            String key = (isRecurring ? "R" : "S") + scheduleId;
 
             if (completionMap.containsKey(key)) {
                 // 기존 DTO 객체의 값을 유지하면서 completed 속성만 업데이트한 새 객체 생성
-                ScheduleDTO updatedSchedule = ScheduleDTO.builder()
+                ScheduleDTO.ScheduleDTOBuilder builder = ScheduleDTO.builder()
                         .id(schedule.getId())
                         .content(schedule.getContent())
                         .startDate(schedule.getStartDate())
@@ -97,11 +160,20 @@ public class ScheduleQueryService {
                         .priority(schedule.getPriority())
                         .description(schedule.getDescription())
                         .createdAt(schedule.getCreatedAt())
-                        .updateAt(schedule.getUpdateAt())
-                        .build();
+                        .updateAt(schedule.getUpdateAt());
+
+                // 반복 일정인 경우 추가 필드 설정
+                if (isRecurring || schedule.getId() < 0) {
+                    builder.isRecurring(true);
+                    if (schedule.getPatternType() != null) {
+                        builder.patternType(schedule.getPatternType());
+                    } else {
+                        builder.patternType(getPatternTypeFromId(Math.abs(schedule.getId())));
+                    }
+                }
 
                 // 리스트의 해당 위치에 새 객체로 교체
-                schedules.set(i, updatedSchedule);
+                schedules.set(i, builder.build());
             }
         }
     }

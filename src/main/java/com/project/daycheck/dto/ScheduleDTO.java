@@ -1,3 +1,4 @@
+
 package com.project.daycheck.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -24,12 +25,14 @@ public class ScheduleDTO {
     private LocalDateTime endDate;
 
     private Boolean completed; // 일정 완료/미완료
-//    private String recurrencePattern; // 반복 패턴
-//    private Long parentScheduleId; // 부모일정(개별일정) - 반복 일정 설정 시 필요
     private String priority;
     private String description;
     private LocalDateTime createdAt;
     private LocalDateTime updateAt;
+
+    // 반복 일정 관련 필드 추가
+    private Boolean isRecurring; // 반복 일정 여부
+    private String patternType;  // 반복 패턴 유형 (DAILY, WEEKLY, MONTHLY, YEARLY)
 
 
     // Entity 변환 메소드
@@ -41,8 +44,6 @@ public class ScheduleDTO {
                 .startDate(startDate)
                 .endDate(endDate)
                 .completed(completed != null ? completed : false)
-//                .recurrencePattern(recurrencePattern)
-//                .parentScheduleId(parentScheduleId)
                 .priority(priority)
                 .description(description)
                 .build();
@@ -56,12 +57,11 @@ public class ScheduleDTO {
                 .startDate(schedules.getStartDate())
                 .endDate(schedules.getEndDate())
                 .completed(schedules.getCompleted())
-//                .recurrencePattern(schedules.getRecurrencePattern())
-//                .parentScheduleId(schedules.getParentScheduleId())
                 .priority(schedules.getPriority())
                 .description(schedules.getDescription())
                 .createdAt(schedules.getCreatedAt())
                 .updateAt(schedules.getUpdatedAt())
+                .isRecurring(false) // 일반 일정은 기본적으로 false
                 .build();
     }
 

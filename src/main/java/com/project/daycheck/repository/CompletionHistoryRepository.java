@@ -19,5 +19,5 @@ public interface CompletionHistoryRepository  extends JpaRepository<CompletionHi
     List<CompletionHistory> findByCompletionDateAndMemberId(LocalDate completionDate, Long memberId);
 
     // 특정 일정의 모든 완료 이력 조회
-    List<CompletionHistory> findByScheduleIdAndIsRecurring(Long scheduleId, Boolean isRecurring, Long memberId);
+    List<CompletionHistory> findByScheduleIdAndIsRecurringAndMemberId(Long scheduleId, Boolean isRecurring, Long memberId);
 }

@@ -2,6 +2,7 @@ package com.project.daycheck.controller;
 
 import com.project.daycheck.dto.ScheduleDTO;
 import com.project.daycheck.dto.request.ScheduleRequest;
+import com.project.daycheck.service.ScheduleQueryService;
 import com.project.daycheck.service.ScheduleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,13 +24,15 @@ import java.util.List;
 public class ScheduleController {
 
     private final ScheduleService scheduleService;
+    private final ScheduleQueryService scheduleQueryService;
 
     // 특정 날짜 일정 조회
     @Operation(summary = "일정 조회", description = "로그인한 사용자의 특정 날짜 일정을 조회한다.")
     @GetMapping("/{date}")
     public ResponseEntity<List<ScheduleDTO>> getSchedulesByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        List<ScheduleDTO> schedules = scheduleService.getScheduleByDate(date);
+//        List<ScheduleDTO> schedules = scheduleService.getScheduleByDate(date);
+        List<ScheduleDTO> schedules = scheduleQueryService.getAllSchedulesByDate(date);
         return ResponseEntity.ok(schedules);
     }
 

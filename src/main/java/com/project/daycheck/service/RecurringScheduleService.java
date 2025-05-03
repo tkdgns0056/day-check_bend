@@ -116,7 +116,7 @@ public class RecurringScheduleService {
     }
 
     /**
-     * 패턴과 날짜로부터 일정 DTO 생성
+     * 패턴과 날짜로부터 일정 DTO 생성 (수정된 버전)
      */
     private ScheduleDTO createScheduleFromPattern(RecurringSchedule pattern, LocalDate date, RecurringException exception) {
         // 시작 시간과 종료 시간 파싱
@@ -162,6 +162,8 @@ public class RecurringScheduleService {
                 .completed(false) // 반복 일정은 기본적으로 완료되지 않은 상태
                 .priority(priority)
                 .description(description)
+                .isRecurring(true) // 반복 일정임을 표시
+                .patternType(pattern.getPatternType()) // 반복 패턴 유형 설정
                 .build();
     }
 
